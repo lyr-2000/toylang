@@ -188,3 +188,8 @@ func (l *LexerWithCache) ReadToken() []*Token {
 	}
 	return result
 }
+
+// func (u *Lexer) NextMatch(value string) {
+// 	var token = u.ReadToken()
+
+// }

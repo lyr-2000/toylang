@@ -102,7 +102,9 @@ func Test_read_operator(t *testing.T) {
 
 	Convey("test_read_operator //", t, func() {
 		lexer := New(bytes.NewBufferString("//"))
+
 		So(lexer.readOperator_().Value, ShouldEqual, "/")
 		So(lexer.readOperator_().Value, ShouldEqual, "/")
 	})
+
 }

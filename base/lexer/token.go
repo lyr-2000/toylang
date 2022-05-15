@@ -16,7 +16,7 @@ import (
 */
 
 //go:generate stringer -type TokenType
-type TokenType int16
+type TokenType int8
 
 const (
 	_        TokenType = iota
@@ -33,10 +33,12 @@ const (
 	Illegal //illegal state
 )
 
+type TokenValue = interface{}
+
 type Token struct {
 	Type TokenType
 	//Value    string //literal
-	Value interface{}
+	Value TokenValue
 	//Line     int, 不需要 line 和 col ,浪费内存
 	//Position int
 }

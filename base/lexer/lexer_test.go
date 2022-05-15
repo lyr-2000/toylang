@@ -82,7 +82,7 @@ func Test_delete_comments(t *testing.T) {
 			"var b = a+1+4*333" +
 			"" +
 			"")
-		var token []*Token
+		var token []*Token = nil
 		/*
 			defer func() {
 				err := recover()

@@ -11,6 +11,7 @@ import (
 //	*scanner.Scanner
 //}
 type BaseLexer = LexerWithCache
+type Lexer = BaseLexer
 
 func New(reader io.Reader) *LexerWithCache {
 	//lexer := &BaseLexer{

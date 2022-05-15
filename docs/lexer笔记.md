@@ -196,3 +196,71 @@ func New(reader io.Reader) *LexerWithCache {
 
 
 
+## 参考 otto的实现
+
+
+
+
+[lexer参考链接](https://github.dev/robertkrimen/otto) 
+
+参考 otto/lerxer.go 文件
+
+
+```go
+
+
+func digitValue(chr rune) int {
+	switch {
+	case '0' <= chr && chr <= '9':
+		return int(chr - '0')
+	case 'a' <= chr && chr <= 'f':
+		return int(chr - 'a' + 10)
+	case 'A' <= chr && chr <= 'F':
+		return int(chr - 'A' + 10)
+	}
+	return 16 // Larger than any legal digit value
+}
+
+func isDigit(chr rune, base int) bool {
+	return digitValue(chr) < base
+}
+
+// 下面是函数调用
+
+if self.chr == '0' {
+		offset := self.chrOffset
+		self.read()
+		if self.chr == 'x' || self.chr == 'X' {
+			// Hexadecimal
+			self.read()
+			if isDigit(self.chr, 16) {
+				self.read()
+			} else {
+				return token.ILLEGAL, self.str[offset:self.chrOffset]
+			}
+			self.scanMantissa(16)
+
+			if self.chrOffset-offset <= 2 {
+				// Only "0x" or "0X"
+				self.error(0, "Illegal hexadecimal number")
+			}
+
+			goto hexadecimal
+		} else if self.chr == '.' {
+			// Float
+			goto float
+		} else {
+			// Octal, Float
+			if self.chr == 'e' || self.chr == 'E' {
+				goto exponent
+			}
+			self.scanMantissa(8)
+			if self.chr == '8' || self.chr == '9' {
+				return token.ILLEGAL, self.str[offset:self.chrOffset]
+			}
+			goto octal
+		}
+	}
+
+```
+
