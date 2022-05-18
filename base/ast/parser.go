@@ -31,9 +31,9 @@ const (
 
 )
 
-type AstNode struct {
+type BaseNode struct {
 	//节点类型 ？
-	NodeType NodeType
+	// NodeType NodeType
 	//子节点
 	Children []Anode
 	//父节点
@@ -44,50 +44,50 @@ type AstNode struct {
 
 // type Node = AstNode
 type Anode interface {
-	GetNodeType() NodeType
+	// GetNodeType() NodeType
 	GetLexeme() *Token
 	GetChildren() []Anode
-	GetParent() Anode
+	// GetParent() Anode
 	SetLexeme(t *Token)
-	SetNodeType(NodeType)
+	// SetNodeType(NodeType)
 }
 
-// 设置 node type
-func (u *AstNode) GetNodeType() NodeType {
-	return u.NodeType
-}
-func (u *AstNode) SetNodeType(n NodeType) {
-	u.NodeType = n
+// // 设置 node type
+// func (u *BaseNode) GetNodeType() NodeType {
+// 	return u.NodeType
+// }
 
-}
-func (u *AstNode) GetLexeme() *Token {
+// func (u *BaseNode) SetNodeType(n NodeType) {
+// 	u.NodeType = n
+
+// }
+func (u *BaseNode) GetLexeme() *Token {
 	return u.Lexeme
 }
-func (u *AstNode) GetChildren() []Anode {
+func (u *BaseNode) GetChildren() []Anode {
 	return u.Children
 }
-func (u *AstNode) GetParent() Anode {
+func (u *BaseNode) GetParent() Anode {
 	return u.Parent
 }
 
 // 设置 token
-func (u *AstNode) SetLexeme(t *Token) {
+func (u *BaseNode) SetLexeme(t *Token) {
 	u.Lexeme = t
 }
 
 type ILexer = lexer.Lexer
 
-// func toStringNode(n Anode) string {
-// 	var (
-// 		t   string
-// 		val string
-// 	)
-// 	t = fmt.Sprintf("%T,", n)
-// 	val = fmt.Sprintf("%+v", n)
-// 	return t + val
-// }
+func (n *BaseNode) String() string {
+	return toDfsPatternStringNode(n)
+}
 
+//tree Print
 func toDfsPatternStringNode(n Anode) string {
+	if n == nil {
+		return "nil tree"
+	}
+
 	// var buf strings.Builder
 	tree := treeprint.New()
 	// tree.Newb
@@ -101,7 +101,7 @@ func toDfsPatternStringNode(n Anode) string {
 			bh.AddNode(fmt.Sprintf("%+v", nnode.GetLexeme()))
 			return
 		}
-		ch := bh.AddBranch(fmt.Sprintf("(%v)%+v", nnode.GetNodeType(), nnode.GetLexeme()))
+		ch := bh.AddBranch(fmt.Sprintf("(%T)%+v", nnode, nnode.GetLexeme()))
 		// ch.AddNode(fmt.Sprintf("%+v", nnode.GetLexeme()))
 		// bh.AddNode(fmt.Sprintf("%+v", nnode))
 		for _, c := range nnode.GetChildren() {
@@ -113,16 +113,7 @@ func toDfsPatternStringNode(n Anode) string {
 
 }
 
-// func (*Parser) ParseNode(lx ILexer) Anode {
-// 	var (
-// 		// scalar Scalar
-// 		expr Expr
-// 	)
-
-// 	//表达式
-// 	return expr.AstNode
-// }
-
+// peek token
 type PeekTokenIterator struct {
 	i      int
 	tokens []*Token

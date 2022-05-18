@@ -132,3 +132,18 @@ func Test_complex_expression(t *testing.T) {
 	})
 
 }
+
+/*
+TODO:
+1. 配置 ctrl e 快捷键
+
+
+2. 配置 ctrl j 快捷键
+
+
+3. 配置 ctrl  t 快捷键
+
+4. 配置 ctrl  left right 快捷键
+
+5. 配置 ctrl space 快捷键
+*/

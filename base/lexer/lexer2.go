@@ -146,14 +146,14 @@ func (l *LexerWithCache) ReadToken() []*Token {
 
 		if isDoubleQuote(c) { //read string
 			result = append(result, l.readString_())
-		} else if IsLiteral(c) {
+		} else if (!IsNumber(c)) && IsLiteral(c) { //注意，变量不能用数字开头， bugfix
 			result = append(result, l.readKeywordOrVariableKey_())
 		} else if isSingleQuote(c) {
 			//read char
 			result = append(result, l.readChar_())
 		} else if IsNumber(c) {
 			result = append(result, l.readNumber_())
-		} else if c == '+' || c == '-' {
+		} else if (len(result) == 0 && c == '+') || c == '-' {
 			l.Next() //for c next
 			spacef := IsSpace(l.Peek())
 			if spacef {

@@ -3,27 +3,27 @@ package ast
 //用來描述抽象语法树
 
 type BlockNode struct {
-	AstNode
+	BaseNode
 }
 
 type IfStmt struct {
-	AstNode
+	BaseNode
 }
 
 type DeclareStmt struct {
-	AstNode
+	BaseNode
 }
 
 type ForStmt struct {
-	AstNode
+	BaseNode
 }
 
 type FuncStmt struct {
-	AstNode
+	BaseNode
 }
 
 type Factor struct {
-	AstNode
+	BaseNode
 }
 
 type Scalar struct {
@@ -35,9 +35,10 @@ type Variable struct {
 }
 
 type Expr struct {
-	AstNode
+	BaseNode
+	NodeType
 }
 
-func (a *AstNode) Store(t *Token) {
+func (a *BaseNode) Store(t *Token) {
 	a.Lexeme = t
 }

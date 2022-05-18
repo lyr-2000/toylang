@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-//type BaseLexer struct {
+// BaseLexer type BaseLexer struct {
 //	*scanner.Scanner
 //}
 type BaseLexer = LexerWithCache

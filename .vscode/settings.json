@@ -24,4 +24,5 @@
         "terminal.ansiWhite": "#BCBABE",
         "terminal.ansiYellow": "#DC8A0E"
     },
+    "go.lintFlags": ["--disable=all", "--enable=errcheck"]
 }

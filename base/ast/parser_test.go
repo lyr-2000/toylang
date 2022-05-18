@@ -61,6 +61,7 @@ func Test_node_binary_plus_fun(t *testing.T) {
 
 		// t.Logf("result=%s\n", toDfsPatternStringNode(node))
 		t.Logf("%+v\n", toDfsPatternStringNode(node))
+		t.Logf("%+v\n", node)
 		// So(node.GetChildren()[0].GetLexeme().Value, ShouldEqual, "+")
 
 	})
