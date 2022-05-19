@@ -2,7 +2,6 @@ package lexer
 
 import (
 	"bytes"
-	"fmt"
 	"text/scanner"
 	"toylang/base/list"
 )
@@ -117,7 +116,7 @@ func (l *LexerWithCache) peekAndComments_() bool {
 }
 
 //读取 token
-func (l *LexerWithCache) ReadToken() []*Token {
+func (l *LexerWithCache) ReadTokens() []*Token {
 
 	var result []*Token
 	//defer func() {
@@ -153,31 +152,33 @@ func (l *LexerWithCache) ReadToken() []*Token {
 			result = append(result, l.readChar_())
 		} else if IsNumber(c) {
 			result = append(result, l.readNumber_())
-		} else if (len(result) == 0 && c == '+') || c == '-' {
-			l.Next() //for c next
-			spacef := IsSpace(l.Peek())
-			if spacef {
-				l.skipBlankChars_()
-			}
-			peekchar := l.Peek()
-			if IsNumber(peekchar) {
-				//+12,-12
-				tk := l.readNumber_()
-				if c == '-' {
-					//负号就修改内容
-					tk.Value = fmt.Sprintf("-%v", tk.Value)
-				}
-				result = append(result, tk)
-				continue
-			} else {
-
-				// operator符号，就返回去
-				l.PutBackChar(c)
-				if spacef {
-					l.PutBackChar(' ')
-				}
-			}
 		}
+
+		// else if len(result) == 0 && (c == '+' || c == '-') {
+		// 	l.Next() //for c next
+		// 	spacef := IsSpace(l.Peek())
+		// 	if spacef {
+		// 		l.skipBlankChars_()
+		// 	}
+		// 	peekchar := l.Peek()
+		// 	if IsNumber(peekchar) {
+		// 		//+12,-12
+		// 		tk := l.readNumber_()
+		// 		if c == '-' {
+		// 			//负号就修改内容
+		// 			tk.Value = fmt.Sprintf("-%v", tk.Value)
+		// 		}
+		// 		result = append(result, tk)
+		// 		continue
+		// 	} else {
+
+		// 		// operator符号，就返回去
+		// 		l.PutBackChar(c)
+		// 		if spacef {
+		// 			l.PutBackChar(' ')
+		// 		}
+		// 	}
+		// }
 		c = l.Peek()
 
 		if IsOperator(c) {

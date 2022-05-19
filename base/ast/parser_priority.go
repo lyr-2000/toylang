@@ -1,8 +1,8 @@
 package ast
 
-// 优先级表
-type PriorityTab struct {
-}
+// // 优先级表
+// type PriorityTab struct {
+// }
 
 /*
 产生式

@@ -13,7 +13,7 @@ func Test_ast_node_parse(t *testing.T) {
 		var souce = "var a = 1+1"
 		var l = lexer.NewStringLexer(souce)
 
-		t.Logf("%v\n", l.ReadToken())
+		t.Logf("%v\n", l.ReadTokens())
 
 	})
 }
@@ -49,7 +49,7 @@ func Test_node_binary_plus_fun(t *testing.T) {
 	Convey("test_node_binary_plus", t, func() {
 		var s = "1+2+3+4"
 		lx := lexer.NewStringLexer(s)
-		var result = lx.ReadToken()
+		var result = lx.ReadTokens()
 		t.Logf("%v\n", result)
 		var pf = Pf{
 			PeekTokenIterator: PeekTokenIterator{

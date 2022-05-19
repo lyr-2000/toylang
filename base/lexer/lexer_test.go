@@ -92,7 +92,7 @@ func Test_delete_comments(t *testing.T) {
 			}()
 		*/
 
-		token = l.ReadToken()
+		token = l.ReadTokens()
 		So(token[0].Value, ShouldEqual, "var")
 		So(token[1].Value, ShouldEqual, "a")
 		So(token[2].Value, ShouldEqual, "=")
@@ -113,7 +113,7 @@ func Test_complex_expression(t *testing.T) {
 			"/*注释666666*/" +
 			"var a =b+   c   --;\n\t\t")
 
-		token := l.ReadToken()
+		token := l.ReadTokens()
 		t.Logf("%v", token)
 		So(token[0].Value, ShouldEqual, "var")
 		So(token[1].Value, ShouldEqual, "a")
@@ -126,7 +126,7 @@ func Test_complex_expression(t *testing.T) {
 	Convey("test_complex_2", t, func() {
 		var s = "var a= 111+6666+444+(999/2+888*888+999+876+5555+   77777/223+(96666+  888/ 2))"
 		lexer := NewStringLexer(s)
-		token := lexer.ReadToken()
+		token := lexer.ReadTokens()
 		t.Logf("%v", token)
 
 	})

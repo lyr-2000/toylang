@@ -115,13 +115,13 @@ func Test_token_incr(t *testing.T) {
 		var source = "a+++1"
 		// a ,++ ,+ ,1
 		var a = NewStringLexer(source)
-		log.Printf("%+v\n", a.ReadToken())
+		log.Printf("%+v\n", a.ReadTokens())
 	})
 }
 
 func Test_token_plus(t *testing.T) {
 	Convey("test_token_plus", t, func() {
 		ts := NewStringLexer("+1-2+3")
-		t.Logf("%+v\n", ts.ReadToken())
+		t.Logf("%+v\n", ts.ReadTokens())
 	})
 }

@@ -205,6 +205,8 @@ func (l *BaseLexer) readString_() *Token {
 			buf.WriteRune(c)
 		}
 	}
+	//it must be l.peek() == L
+	l.Next()
 	//没有迭代完成
 	return makeToken(String, buf.String())
 }
@@ -226,6 +228,9 @@ func mixOperator_(l, r char) string {
 		}
 		if r == '=' {
 			return "-="
+		}
+		if r == '>' {
+			return "->"
 		}
 		return "-"
 	} else if l == '*' {
@@ -261,9 +266,15 @@ func mixOperator_(l, r char) string {
 		}
 		return "|"
 	} else if l == '!' {
+		if r == '=' {
+
+			return "!="
+		}
 		return "!"
 	} else if l == '^' {
-
+		if r == '=' {
+			return "^="
+		}
 		return "^"
 	} else if l == ',' {
 		return ","

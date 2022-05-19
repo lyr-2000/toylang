@@ -75,7 +75,8 @@ func IsOperator(c char) bool {
 		'^',
 		'%',
 		'=',
-		',', ';':
+		',', ';',
+		'.':
 		return true
 	default:
 
@@ -87,9 +88,44 @@ func IsOperator(c char) bool {
 // 	return *(*[]byte)(unsafe.Pointer(s))
 // }
 
-//TODO: 实现高性能判断 keyword
+var (
+	// keywords = map[string]bool{
+	// 	"bool":     true,
+	// 	"var":      true,
+	// 	"if":       true,
+	// 	"else":     true,
+	// 	"const":    true,
+	// 	"def":      true,
+	// 	"function": true,
+	// 	"fn":       true,
+	// }
+	keywords = []string{
+		"bool",
+		"var",
+		"if",
+		"else",
+		"const",
+		"def",
+		"fn",
+		"function",
+		"int",
+		"float",
+		"double",
+		"long",
+		"number",
+		"object",
+		"void",
+		"return",
+	}
+)
+
 func IsKeyword(s string) bool {
-	return s == "var"
+	for i, _ := range keywords {
+		if s == keywords[i] {
+			return true
+		}
+	}
+	return false
 }
 func HasKeyword(s string) bool {
 	return IsKeyword(s)

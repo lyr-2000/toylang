@@ -78,7 +78,10 @@ func (u *BaseNode) SetLexeme(t *Token) {
 
 type ILexer = lexer.Lexer
 
-func (n *BaseNode) String() string {
+// func (n *BaseNode) String() string {
+// 	return toDfsPatternStringNode(n)
+// }
+func ShowTree(n Anode) string {
 	return toDfsPatternStringNode(n)
 }
 
