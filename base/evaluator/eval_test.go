@@ -21,7 +21,7 @@ func Test_run_code(t *testing.T) {
 	c := NewCodeRunner()
 	code := `
 	a = 1;
-    b = 2;
+    b = 2; 
 	a = 1+b; 
 	b = "hello world" + b;
 	// 这个时候 a == 3 
