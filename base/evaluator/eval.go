@@ -8,6 +8,10 @@ import (
 	"github.com/spf13/cast"
 )
 
+const (
+	returnKey = "$return"
+)
+
 func (h *CodeRunner) fn_call(fn *ast.FuncStmt, caller *ast.CallFuncStmt) interface{} {
 	if fn == nil || caller == nil {
 		return nil
@@ -35,7 +39,7 @@ func (h *CodeRunner) fn_call(fn *ast.FuncStmt, caller *ast.CallFuncStmt) interfa
 	}
 	// call stmt
 	h.evalNode(body)
-	return h.GetVar("$return")
+	return h.GetVar(returnKey)
 
 }
 
@@ -44,13 +48,22 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 		return nil
 	}
 	switch n.(type) {
+	case *ast.DeclareStmt:
+		w := n.(*ast.DeclareStmt)
+		fmt.Printf("%#v\n", w)
+		if len(w.Children) == 2 {
+			h.SetVar(w.Children[0].GetLexeme().Value.(string), h.evalNode(w.Children[1]), true)
+		} else {
+			h.SetVar(w.Children[0].GetLexeme().Value.(string), nil, true)
+		}
 	case *ast.Scalar:
 		w := n.(*ast.Scalar)
-		if w.Lexeme.Type == lexer.Number {
-			// todo: 实现转换
-			return cast.ToFloat64(w.Lexeme.Value)
-		}
-		return w.Lexeme.Value
+		// if w.Lexeme.Type == lexer.Number {
+		// 	// todo: 实现转换
+		// 	return cast.ToFloat64(w.Lexeme.Value)
+		// }
+		return cast_scalar_node_type(w)
+		// return w.Lexeme.Value
 	case *ast.Variable:
 		return h.GetVar(n.GetLexeme().Value.(string))
 	case *ast.BlockNode:
@@ -61,11 +74,20 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 		//left and right
 		return h.evalExpr(n)
 	case *ast.FuncStmt:
-		//define func
-		h.Functions = append(h.Functions, n.(*ast.FuncStmt))
+		//定义函数
+		h.fn_define(n.(*ast.FuncStmt))
+		// h.Functions = append(h.Functions, n.(*ast.FuncStmt))
 	case *ast.CallFuncStmt:
+
+		var fnName = n.GetLexeme().Value.(string)
+		if IsLibFn(fnName) {
+			// lib call
+			return h.libFnCall(fnName, n.GetChildren())
+		}
 		match := false
 		var res interface{}
+
+		// call  user fun
 		for _, v := range h.Functions {
 			if v.Lexeme.Value.(string) == n.GetLexeme().Value.(string) {
 				res = h.fn_call(v, n.(*ast.CallFuncStmt))
@@ -74,16 +96,17 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 			}
 		}
 		if !match {
-			fmt.Printf("cannot call fn\n")
+			// fmt.Printf("cannot call fn\n")
+			panic("cannot call fn")
 		}
 		return res
 	case *ast.ReturnStmt:
 		//return statement
 		m := n.(*ast.ReturnStmt)
 		if len(m.Children) == 1 {
-			h.SetVar("$return", h.evalNode(m.Children[0]), true)
+			h.SetVar(returnKey, h.evalNode(m.Children[0]), true)
 		} else {
-			h.SetVar("$return", nil, true)
+			h.SetVar(returnKey, nil, true)
 		}
 
 	default:
@@ -93,9 +116,9 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 	return nil
 }
 
-func parseVar1(a, b interface{}, op string) interface{} {
-	return nil
-}
+// func parseVar1(a, b interface{}, op string) interface{} {
+// 	return nil
+// }
 
 func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 	if n == nil {
@@ -144,17 +167,17 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 		case *ast.Scalar:
 			r1 := r.(*ast.Scalar)
 			//常量
-			h.SetVar(variable.Lexeme.Value.(string), r1.Lexeme.Value, true)
+			h.SetVar(variable.Lexeme.Value.(string), r1.Lexeme.Value, false)
 		case *ast.Variable:
 			r1 := r.(*ast.Variable)
 			w := h.GetVar(r1.Lexeme.String())
-			h.SetVar(variable.Lexeme.Value.(string), w, true)
+			h.SetVar(variable.Lexeme.Value.(string), w, false)
 		// case *ast.Expr:
 		// 	h.SetVar(variable.Lexeme.Value.(string), 1, true)
 		// r = h.evalExpr(r)
 		// goto repeat
 		default:
-			h.SetVar(variable.Lexeme.Value.(string), r, true)
+			h.SetVar(variable.Lexeme.Value.(string), r, false)
 			// panic(fmt.Sprintf("illegal node support %T", r))
 
 		}

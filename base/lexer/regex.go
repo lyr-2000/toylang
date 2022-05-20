@@ -102,6 +102,7 @@ var (
 	keywords = []string{
 		"bool",
 		"var",
+		"global", // 全局变量使用
 		"if",
 		"else",
 		"const",

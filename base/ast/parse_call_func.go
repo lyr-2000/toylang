@@ -1,5 +1,25 @@
 package ast
 
+import "toylang/base/lexer"
+
+func isExpr__(n *lexer.Token) bool {
+	if n == nil {
+		return false
+	}
+	if n.Value == "." {
+		//call statement
+		return false
+	}
+	switch n.Type {
+	case lexer.Boolean, lexer.Char, lexer.String, lexer.Variable, lexer.Number:
+		return true
+
+	default:
+
+	}
+	return false
+}
+
 func parseCallFuncStmt(t *Tokens) Node {
 	if !t.hasNext() {
 		return nil
@@ -32,6 +52,7 @@ func parseCallFuncStmt(t *Tokens) Node {
 		t.next()
 
 	} else {
+		var needDot = false
 		for {
 			if !t.hasNext() {
 				break
@@ -39,44 +60,42 @@ func parseCallFuncStmt(t *Tokens) Node {
 			if t.current().Value == ";" {
 				break
 			}
-			// if t.current().Value == "," {
-			// 	t.next()
-			// 	exprNode = append(exprNode, parseExpr(t))
-			// 	paramCnt++
-			// 	hasNext = true
-			// 	continue
-			// } else {
-			// 	if paramCnt > 0 && !hasNext {
-			// 		break
-			// 	}
-			// 	exprNode = append(exprNode, parseExpr(t))
-			// 	paramCnt++
+
+			hasParameter := false
+			cur := t.current()
+			if needDot && cur.Value != "," {
+				break
+			}
+			if cur.Value == "," {
+				hasParameter = true
+				t.next()
+				needDot = true
+			} else if isExpr__(cur) {
+				hasParameter = true
+				needDot = true
+			} else {
+				panic("cannot explain the fn call statement")
+			}
+			if hasParameter {
+				exprNode = append(exprNode, parseExpr(t))
+			} else {
+				break
+			}
+
+			// else {
+			// 	break
 			// }
-			i := 0
-			// paramCnt := 0
-			dotCnt := 0
-			for {
-				tk := t.peekNext(i)
-				if tk == "" || tk == ";" {
-					break
-				}
-				if tk == "," {
-					dotCnt++
-				}
-				i++
-			}
+			// if dotCnt > 0 {
+			// 	paramCnt := dotCnt + 1
+			// 	for paramCnt > 0 {
+			// 		exprNode = append(exprNode, parseExpr(t))
+			// 		paramCnt--
+			// 		if t.peek() == "," {
+			// 			t.next()
+			// 		}
 
-			if dotCnt > 0 {
-				paramCnt := dotCnt + 1
-				for paramCnt > 0 {
-					exprNode = append(exprNode, parseExpr(t))
-					paramCnt--
-					if t.peek() == "," {
-						t.next()
-					}
-
-				}
-			}
+			// 	}
+			// }
 			// endl
 
 		}
