@@ -12,6 +12,8 @@ type CodeRunner struct {
 	Functions []*ast.FuncStmt
 	Vars      map[string]interface{}
 	Stack     *list.Stack
+
+	stackDeep int
 }
 
 func NewCodeRunner() *CodeRunner {
@@ -23,34 +25,38 @@ func NewCodeRunner() *CodeRunner {
 func (h *CodeRunner) GetVar(key string) interface{} {
 	return get_var(h.Vars, h.Stack, key)
 }
-func (h *CodeRunner) SetVar(k string, v interface{}, isStk bool) {
+func (h *CodeRunner) GetStackVar(key string) (interface{}, bool) {
+	return get_stack_var(h.Vars, h.Stack, key)
+}
+
+func (h *CodeRunner) SetVar(k string, v interface{}, isStackAssign bool) {
 	if v == nil {
-		set_var(h.Vars, h.Stack, k, v, isStk)
+		set_var(h.Vars, h.Stack, k, v, isStackAssign)
 		return
 	}
 	if n, ok := v.(ast.Anode); ok {
 		switch n.(type) {
 		case *ast.Variable:
 			varnode := n.(*ast.Variable)
-			h.SetVar(k, h.GetVar(varnode.Lexeme.Value.(string)), isStk)
+			h.SetVar(k, h.GetVar(varnode.Lexeme.Value.(string)), isStackAssign)
 		case *ast.Scalar:
 			varnode := n.(*ast.Scalar)
 			switch varnode.Lexeme.Type {
 			case lexer.Number:
-				h.SetVar(k, cast.ToFloat64(varnode.Lexeme.Value), isStk)
+				h.SetVar(k, cast.ToFloat64(varnode.Lexeme.Value), isStackAssign)
 
 			default:
-				h.SetVar(k, varnode.Lexeme.Value.(string), isStk)
+				h.SetVar(k, varnode.Lexeme.Value.(string), isStackAssign)
 			}
 			// h.SetVar(k, varnode, isStk)
 		default:
-			h.SetVar(k, h.evalNode(v.(ast.Anode)), isStk)
+			h.SetVar(k, h.evalNode(v.(ast.Anode)), isStackAssign)
 		}
 
 		return
 	}
 
-	set_var(h.Vars, h.Stack, k, v, isStk)
+	set_var(h.Vars, h.Stack, k, v, isStackAssign)
 }
 
 func (c *CodeRunner) ParseAndRun(s string) int {
@@ -63,14 +69,5 @@ func (c *CodeRunner) RunCode(t ast.Node) int {
 	}
 	c.evalNode(t)
 
-	//run main
-	// switch t.(type) {
-	// case *ast.Factor, *ast.Scalar: // skip
-	// //bad node
-	// case *ast.Expr:
-
-	// default:
-
-	// }
 	return 0
 }

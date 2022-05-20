@@ -115,26 +115,47 @@ func (l *LexerWithCache) peekAndComments_() bool {
 	return true
 }
 
+// func (l *LexerWithCache) ReadTokensSafe(c time.Time) {
+// 	var ctx, _ = context.WithDeadline(context.TODO(), c)
+// 	select {
+// 	case <-ctx.Done():
+// 		return
+// 	default:
+
+// 	}
+// }
+
 //读取 token
 func (l *LexerWithCache) ReadTokens() []*Token {
 
 	var result []*Token
-	//defer func() {
-	//	err := recover()
-	//	fmt.Printf("last char is %d %c ; %v ,%v", int(l.Peek()), l.Peek(), err, result)
-	//}()
+
+	var pre char
+	var repeatCnt int64
 	for l.HasNext() {
+		// repeat:
 		//l.ClearQueue() // clear token cache
 		c := l.Peek()
 		if c == -1 {
 			break
 		}
+		if c == pre {
+			repeatCnt++
+			if repeatCnt > 444 { //无法读取并且consume字符，只能抛出异常
+				panic("illegal state on readTokens, 无法识别代码中的字符")
+			}
+		}
+		if c != pre {
+			pre = c
+			repeatCnt = 0
+		}
+
 		if c == '/' && l.peekAndComments_() {
 			continue
 		}
 		if IsSpace(c) {
 			l.skipBlankChars_()
-			//c = l.Peek()
+			//if c == '\n' then ??
 			continue
 		}
 		if IsBracket(c) {
@@ -154,31 +175,6 @@ func (l *LexerWithCache) ReadTokens() []*Token {
 			result = append(result, l.readNumber_())
 		}
 
-		// else if len(result) == 0 && (c == '+' || c == '-') {
-		// 	l.Next() //for c next
-		// 	spacef := IsSpace(l.Peek())
-		// 	if spacef {
-		// 		l.skipBlankChars_()
-		// 	}
-		// 	peekchar := l.Peek()
-		// 	if IsNumber(peekchar) {
-		// 		//+12,-12
-		// 		tk := l.readNumber_()
-		// 		if c == '-' {
-		// 			//负号就修改内容
-		// 			tk.Value = fmt.Sprintf("-%v", tk.Value)
-		// 		}
-		// 		result = append(result, tk)
-		// 		continue
-		// 	} else {
-
-		// 		// operator符号，就返回去
-		// 		l.PutBackChar(c)
-		// 		if spacef {
-		// 			l.PutBackChar(' ')
-		// 		}
-		// 	}
-		// }
 		c = l.Peek()
 
 		if IsOperator(c) {

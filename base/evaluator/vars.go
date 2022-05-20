@@ -44,6 +44,27 @@ func get_var(global_variables map[string]interface{}, stack *list.Stack, key str
 	return global_variables[key]
 }
 
+func get_stack_var(global_variables map[string]interface{}, stack *list.Stack, key string) (interface{}, bool) {
+	if stack.Len() <= 0 {
+		return nil, false
+	}
+
+	h := stack.Queue.Head
+	if h != nil {
+		if h.Value != nil {
+			if mp, ok := h.Value.(map[string]interface{}); ok {
+				res, ok := mp[key]
+				if ok {
+					return res, ok
+				}
+			}
+		}
+		// h = h.Next
+	}
+	return nil, false
+	// return global_variables[key]
+}
+
 //这里的逻辑有点难处理，
 /*
 规定 使用 var 声明的，就在当前的栈顶开辟内存，否则在全局区域开辟内存

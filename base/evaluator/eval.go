@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"fmt"
+	"strings"
 	"toylang/base/ast"
 	"toylang/base/lexer"
 
@@ -9,12 +10,18 @@ import (
 )
 
 const (
-	returnKey = "$return"
+	returnKey = "@return"
 )
 
+// func (h *CodeRunner) getVar2(key string) (interface{},present) {
+// 	return
+// }
 func (h *CodeRunner) fn_call(fn *ast.FuncStmt, caller *ast.CallFuncStmt) interface{} {
 	if fn == nil || caller == nil {
 		return nil
+	}
+	if h.Stack.Len() > 444 {
+		panic("stack overflow error !!!")
 	}
 
 	var mp = make(map[string]interface{}, 0)
@@ -34,7 +41,15 @@ func (h *CodeRunner) fn_call(fn *ast.FuncStmt, caller *ast.CallFuncStmt) interfa
 	for i, v := range param.Children {
 		//set env
 		if i < len(caller.Children) {
-			h.SetVar(v.GetLexeme().Value.(string), h.evalNode(caller.Children[i]), true)
+			if i+1 >= len(caller.Children) {
+				break
+				// it is no param for next
+			}
+			paramKey := v.GetLexeme().Value.(string)
+
+			paramVal := h.evalNode(caller.Children[i+1])
+			//fmt.Printf("k %v,v %v \n", paramKey, paramVal)
+			h.SetVar(paramKey, paramVal, true)
 		}
 	}
 	// call stmt
@@ -47,6 +62,15 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 	if n == nil {
 		return nil
 	}
+	if h.stackDeep > 0 {
+		// fn call
+		_, exists := h.GetStackVar(returnKey)
+		if exists {
+			//	fmt.Printf("%+v\n", aaa)
+			return nil
+		}
+	}
+
 	switch n.(type) {
 	case *ast.DeclareStmt:
 		w := n.(*ast.DeclareStmt)
@@ -56,20 +80,33 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 		} else {
 			h.SetVar(w.Children[0].GetLexeme().Value.(string), nil, true)
 		}
+
 	case *ast.Scalar:
 		w := n.(*ast.Scalar)
-		// if w.Lexeme.Type == lexer.Number {
-		// 	// todo: 实现转换
-		// 	return cast.ToFloat64(w.Lexeme.Value)
-		// }
 		return cast_scalar_node_type(w)
-		// return w.Lexeme.Value
 	case *ast.Variable:
 		return h.GetVar(n.GetLexeme().Value.(string))
 	case *ast.BlockNode:
 		for _, c := range n.GetChildren() {
+			if ret, isRet := c.(*ast.ReturnStmt); isRet {
+				// block  里面 有 return，就不执行后面的代码
+				return h.evalNode(ret)
+			}
 			h.evalNode(c)
 		}
+	case *ast.IfStmt:
+		stmt := n.(*ast.IfStmt)
+		cond := stmt.GetCondition()
+		body := stmt.GetBody()
+		elseNode := stmt.GetElseNode()
+
+		val := h.evalNode(cond)
+		ok := cast.ToBool(val)
+		if ok {
+			return h.evalNode(body)
+		}
+		return h.evalNode(elseNode)
+
 	case *ast.Expr:
 		//left and right
 		return h.evalExpr(n)
@@ -90,6 +127,11 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 		// call  user fun
 		for _, v := range h.Functions {
 			if v.Lexeme.Value.(string) == n.GetLexeme().Value.(string) {
+				// match it
+				h.stackDeep++
+				defer func() {
+					h.stackDeep--
+				}()
 				res = h.fn_call(v, n.(*ast.CallFuncStmt))
 				match = true
 				break
@@ -156,12 +198,102 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 			panic("cannot divide by zero")
 		}
 		return cast.ToFloat64(h.evalNode(ch[0])) / b
-	case "=":
-		// a = b  => parent is = , left is a ,right is b
-		// l := h.evalNode(ch[0]) // variable
+	case "||":
+		l := h.evalNode(ch[0])
+		lb := cast.ToBool(l)
+		if lb {
+			return true
+		}
+		//短路 或
 		r := h.evalNode(ch[1])
-		// repeat:
-		// h.SetVar(cast.ToString(l))
+		return cast.ToBool(r)
+	case "&&":
+		panic("unsupport operation")
+	case "+=":
+		//a+=1 =>  a = a+ 1
+		l := h.evalNode(ch[0])
+		r := h.evalNode(ch[1])
+		var res interface{}
+		switch l.(type) {
+		case string:
+			res = fmt.Sprintf("%v%v", l, r)
+		default:
+			res = cast.ToFloat64(l) + cast.ToFloat64(r)
+		}
+		h.SetVar(ch[0].(*ast.Variable).Lexeme.Value.(string), res, false)
+		return res
+	case "<=":
+		l := h.evalNode(ch[0])
+		r := h.evalNode(ch[1])
+		var res bool
+		switch l.(type) {
+
+		case string:
+			// a.compare b => -1 => a-b == -1  ==> a < b
+			res = strings.Compare(l.(string), fmt.Sprintf("%+v", r)) <= 0
+
+		default:
+			res = cast.ToFloat64(l) <= cast.ToFloat64(r)
+		}
+		return res
+	case ">=":
+		l := h.evalNode(ch[0])
+		r := h.evalNode(ch[1])
+		var res bool
+		switch l.(type) {
+
+		case string:
+			// a.compare b => -1 => a-b == -1  ==> a < b
+			res = strings.Compare(l.(string), fmt.Sprintf("%+v", r)) >= 0
+
+		default:
+			res = cast.ToFloat64(l) >= cast.ToFloat64(r)
+		}
+		return res
+	case "==":
+		l := h.evalNode(ch[0])
+		r := h.evalNode(ch[1])
+		var res bool
+		switch l.(type) {
+
+		case string:
+			// a.compare b => -1 => a-b == -1  ==> a < b
+			res = strings.Compare(l.(string), fmt.Sprintf("%+v", r)) == 0
+
+		default:
+			res = cast.ToFloat64(l) == cast.ToFloat64(r)
+		}
+		return res
+	case ">":
+		l := h.evalNode(ch[0])
+		r := h.evalNode(ch[1])
+		var res bool
+		switch l.(type) {
+
+		case string:
+			// a.compare b => -1 => a-b == -1  ==> a < b
+			res = strings.Compare(l.(string), fmt.Sprintf("%+v", r)) > 0
+
+		default:
+			res = cast.ToFloat64(l) > cast.ToFloat64(r)
+		}
+		return res
+	case "<":
+		l := h.evalNode(ch[0])
+		r := h.evalNode(ch[1])
+		var res bool
+		switch l.(type) {
+
+		case string:
+			// a.compare b => -1 => a-b == -1  ==> a < b
+			res = strings.Compare(l.(string), fmt.Sprintf("%+v", r)) < 0
+
+		default:
+			res = cast.ToFloat64(l) < cast.ToFloat64(r)
+		}
+		return res
+	case "=":
+		r := h.evalNode(ch[1])
 		variable := ch[0].(*ast.Variable)
 		switch r.(type) {
 		case *ast.Scalar:
@@ -181,8 +313,10 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 			// panic(fmt.Sprintf("illegal node support %T", r))
 
 		}
+
 		// h.SetVar(variable.Lexeme.String(), r, false)
 	default:
+		panic(fmt.Sprintf("unsupport operation %+v ,%+v", n, word))
 
 	}
 	return nil

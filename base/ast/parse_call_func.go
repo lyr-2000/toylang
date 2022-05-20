@@ -25,11 +25,23 @@ func parseCallFuncStmt(t *Tokens) Node {
 		return nil
 	}
 	if t.current().Value != "." {
-		panic("not an call statement")
-		//
+		// 原本要 在函数前面 添加 . 才能识别是函数调用，现在 补充功能，不需要加 . 就可以识别，但是需要带括号
+		//panic("not an call statement")
+		// currrent= println,  and next is (
+		// println()
+		if t.current().Type != lexer.Variable && t.current().Type != lexer.Keyword {
+			panic("illegal statement on call parameter")
+		}
+		// current must be an key word
+		ne := t.peekNextString(1)
+		if ne != "(" {
+			panic("cannot parse function statement ,need brackets \"(\" \")\" ")
+		}
 	}
 
-	t.next()
+	if t.current().Value == "." {
+		t.next()
+	}
 	// .printf 1,2,3
 	var stmt = new(CallFuncStmt)
 
@@ -66,6 +78,27 @@ func parseCallFuncStmt(t *Tokens) Node {
 			if needDot && cur.Value != "," {
 				break
 			}
+			if cur.Value == "." {
+				// 语法检查，及时发现问题
+				panic("unsupport call func at . ,syntax error")
+			}
+			// check syntax
+			{
+				// check:
+				i := 0
+				for t.peekNextToken(i) != nil {
+					w := t.peekNextToken(i)
+					if w.Value == "." {
+						panic("illegal syntax at dot .,please add \";\" on line end , or add brackets \"(\" \")\" to wrap params")
+
+					}
+					if w.Value == ";" {
+						break
+					}
+					i++
+				}
+			}
+
 			if cur.Value == "," {
 				hasParameter = true
 				t.next()
@@ -81,23 +114,6 @@ func parseCallFuncStmt(t *Tokens) Node {
 			} else {
 				break
 			}
-
-			// else {
-			// 	break
-			// }
-			// if dotCnt > 0 {
-			// 	paramCnt := dotCnt + 1
-			// 	for paramCnt > 0 {
-			// 		exprNode = append(exprNode, parseExpr(t))
-			// 		paramCnt--
-			// 		if t.peek() == "," {
-			// 			t.next()
-			// 		}
-
-			// 	}
-			// }
-			// endl
-
 		}
 
 	}

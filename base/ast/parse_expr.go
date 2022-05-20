@@ -19,7 +19,13 @@ func NewTokens(ts []*lexer.Token) *Tokens {
 		tokens: ts,
 	}
 }
-func (t *Tokens) peekNext(id int) string {
+func (t *Tokens) peekNextToken(id int) *Token {
+	if id+t.i >= len(t.tokens) {
+		return nil
+	}
+	return t.tokens[t.i+id]
+}
+func (t *Tokens) peekNextString(id int) string {
 	if id+t.i >= len(t.tokens) {
 		return ""
 	}
@@ -153,6 +159,14 @@ func (e *Expr) parseTop1(t *Tokens) Node {
 	if token.Value == "." {
 		//call func
 		return parseCallFuncStmt(t)
+	}
+
+	if token.Type == lexer.Variable {
+		ne := t.peekNextString(1)
+		if ne == "(" {
+			//ok
+			return parseCallFuncStmt(t)
+		}
 	}
 
 	if token.Type == lexer.Number || token.Type == lexer.String ||

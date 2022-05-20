@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 	"toylang/base/ast"
+	"toylang/base/lexer"
 
 	"github.com/spf13/cast"
 )
@@ -69,6 +70,7 @@ func Test_run_code(t *testing.T) {
 如果只是普通的加减的话，则可以省略括号
 
 */
+
 func Test_run_code111(t *testing.T) {
 	c := NewCodeRunner()
 	code := `
@@ -95,4 +97,100 @@ func Test_run_code111(t *testing.T) {
 	bs, _ := json.Marshal(c)
 
 	t.Logf("%v\n", string(bs))
+}
+
+func Test_run_plus_plus(t *testing.T) {
+	c := NewCodeRunner()
+	code := `
+	 
+	 var a = 1
+
+	 a += 1 
+
+	 a += 2
+
+	 .println a   ; 
+
+	 .println a+1  ;
+
+	 .println a+1   ; 
+	 .println 1,2,3 
+
+//	 .println 3,4,5
+
+	`
+	ll := lexer.NewStringLexer(code)
+	t.Logf("%+v\n", ll.ReadTokens())
+	tree := parse_source_tree(code)
+	t.Logf("%+v\n", ast.ShowTree(tree))
+	c.RunCode(tree)
+	bs, _ := json.Marshal(c)
+
+	t.Logf("%v\n", string(bs))
+}
+
+func Test_run_if(t *testing.T) {
+	c := NewCodeRunner()
+	code := `
+	  var a = true
+	  if (a) {
+		  println (true);
+
+	  }else {
+		  print(false);
+	  }
+
+	  if (a) {
+		  println("ok it is true ")
+	  }
+	  fn app(username) {
+		print (username);
+	  }
+	  app("hello world")
+	`
+	ll := lexer.NewStringLexer(code)
+	t.Logf("%+v\n", ll.ReadTokens())
+	tree := parse_source_tree(code)
+	t.Logf("%+v\n", ast.ShowTree(tree))
+	c.RunCode(tree)
+	bs, _ := json.Marshal(c)
+
+	t.Logf("%v\n", string(bs))
+}
+
+func Test_fib_stack_call(t *testing.T) {
+	c := NewCodeRunner()
+	//1 ,1 ,2 3
+	code := `
+	  fn fib(n) {
+		 // println(n)
+		  if n==1 || n ==2 {
+			return 1
+		  }
+		  
+		  
+		  return fib(n-1) + fib(n-2)
+	  }
+
+	  var a = (2>=1)
+	  println(a)
+	  println("fib result=", fib(4) )
+	  println("fib result = ",fib(12))
+	  // 1 1 , 2 ,3
+
+	`
+	ll := lexer.NewStringLexer(code)
+	t.Logf("%+v\n", ll.ReadTokens())
+	tree := parse_source_tree(code)
+	t.Logf("%+v\n", ast.ShowTree(tree))
+
+	defer func() {
+		// bs, _ := json.Marshal(&stru)
+
+		// t.Logf("%v\n", string(bs))
+		t.Logf("%+v\n", c.Vars)
+		t.Logf("%+v\n", c.Stack.Queue)
+	}()
+	c.RunCode(tree)
+
 }
