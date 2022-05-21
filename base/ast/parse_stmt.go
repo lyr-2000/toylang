@@ -55,6 +55,15 @@ func parseStmt(t *Tokens) Anode {
 	var token = t.next()
 	var head = t.peek()
 	t.back(prev)
+	if token.Value == "break" {
+		brk := new(BreakFlagStmt)
+		brk.Lexeme = token
+		t.next()
+		return brk
+	}
+	if strings.EqualFold(token.Value.(string), "for") || strings.EqualFold(token.Value.(string), "while") {
+		return parseForStmt(t)
+	}
 	if strings.EqualFold(token.Value.(string), "if") {
 		return parseIf(t)
 	}

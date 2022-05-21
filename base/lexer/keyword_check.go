@@ -124,8 +124,9 @@ var (
 	keywords = []string{
 		"bool",
 		"var",
-		"global", // 全局变量使用
+		"global", "lookup", // 全局变量使用
 		"if",
+		"for", "while", "break",
 		"else",
 		"const",
 		"def",

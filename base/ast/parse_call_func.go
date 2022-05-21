@@ -52,7 +52,7 @@ func parseCallFuncStmt(t *Tokens) Node {
 	stmt.Lexeme = fnName.Lexeme
 	//fn name
 	exprNode = append(exprNode, fnName)
-	if t.peek() == "(" {
+	if t.peek() == "(" { // 解析 带括号的 函数调用语句
 		t.next()
 		for t.hasNext() && t.peek() != ")" {
 			if t.peek() == "," {
@@ -63,7 +63,7 @@ func parseCallFuncStmt(t *Tokens) Node {
 		}
 		t.next()
 
-	} else {
+	} else { // parse like   print 1,2,3 , 这种没有括号的
 		var needDot = false
 		for {
 			if !t.hasNext() {

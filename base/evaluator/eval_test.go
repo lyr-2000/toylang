@@ -194,3 +194,33 @@ func Test_fib_stack_call(t *testing.T) {
 	c.RunCode(tree)
 
 }
+
+func Test_for_each_stmt(t *testing.T) {
+	c := NewCodeRunner()
+	//1 ,1 ,2 3
+	code := `
+	   i = 0;
+	   for (1)  {
+		  println(i);
+		  if i>=3 {
+			  break 
+		  } 
+		  i+=1
+	   }
+
+	`
+	ll := lexer.NewStringLexer(code)
+	t.Logf("%+v\n", ll.ReadTokens())
+	tree := parse_source_tree(code)
+	t.Logf("%+v\n", ast.ShowTree(tree))
+
+	defer func() {
+		// bs, _ := json.Marshal(&stru)
+
+		// t.Logf("%v\n", string(bs))
+		t.Logf("%+v\n", c.Vars)
+		t.Logf("%+v\n", c.Stack.Queue)
+	}()
+	c.RunCode(tree)
+
+}

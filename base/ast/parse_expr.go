@@ -99,16 +99,18 @@ func (e *Expr) parseE(t *Tokens, k int) Node {
 		return e.parseTop2(t)
 	}
 	var a = e.parseE(t, k+1)
+
 	for t.i < len(t.tokens) {
 		cur := t.tokens[t.i]
 		if k == 0 {
-			if cur.Value == "{" || cur.Value == "," {
-				break
-			}
-			if cur == nil || cur.Value == ";" { //end line
+			if cur == nil || cur.Value == ";" || cur.Value == ")" { //end line
 				// t.i++
 				break
 			}
+			if cur.Value == "{" || cur.Value == "," {
+				break
+			}
+
 		}
 		match := false
 		for _, v := range tables[k] {
@@ -192,8 +194,14 @@ func (e *Expr) parseTop1(t *Tokens) Node {
 		t.i++ //skip end line
 		return nil
 	}
-	panic("cannot explain ast tree")
-	// return nil
+	if token.Value == "," {
+		return nil
+	}
+	if token.Value == ")" {
+		return nil
+	}
+
+	panic(fmt.Sprintf("cannot explain ast tree %+v", token)) // return nil
 }
 func (e *Expr) parseTop2(t *Tokens) Node {
 	if t.i >= len(t.tokens) {

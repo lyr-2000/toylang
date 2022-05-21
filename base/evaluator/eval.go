@@ -11,7 +11,35 @@ import (
 
 const (
 	returnKey = "@return"
+	breakKey  = "@break"
 )
+
+func panicf(s string, o ...interface{}) {
+	panic(fmt.Sprintf(s, o...))
+}
+func (h *CodeRunner) evalBool(bh ast.Node) bool {
+	if bh == nil {
+		return false
+	}
+	//fmt.Printf("bool expr %+v  %T\n", bh.GetChildren()[0], bh)
+	// l := bh.GetLexeme()
+	// if l == nil {
+	// 	panicf("无法解析 bool 表达式")
+	// }
+	// if l.Type == lexer.Boolean {
+	// 	return cast.ToBool(l.Value)
+	// }
+	ret := h.evalNode(bh)
+	switch ret.(type) {
+	case float64:
+		return cast.ToBool(int(ret.(float64)))
+	default:
+
+	}
+	//fmt.Printf("ret=%v %T", ret, ret)
+	return cast.ToBool(ret)
+
+}
 
 // func (h *CodeRunner) getVar2(key string) (interface{},present) {
 // 	return
@@ -110,6 +138,19 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 	case *ast.Expr:
 		//left and right
 		return h.evalExpr(n)
+	case *ast.ExprGroups:
+		var last interface{}
+		ln := len(n.GetChildren())
+		for i, v := range n.GetChildren() {
+
+			if i == ln-1 {
+				last = h.evalNode(v)
+			} else {
+				h.evalNode(v)
+			}
+		}
+		// a==1,b==2,c==3, 逗号表达式，最后返回 c==3 结果
+		return last
 	case *ast.FuncStmt:
 		//定义函数
 		h.fn_define(n.(*ast.FuncStmt))
@@ -150,6 +191,39 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 		} else {
 			h.SetVar(returnKey, nil, true)
 		}
+
+	case *ast.ForStmt:
+		m := n.(*ast.ForStmt)
+		init := m.GetInitNode()
+		cond := m.GetCondition()
+		le := m.GetEachLoopAction()
+		body := m.GetBody()
+
+		for cond == nil || h.evalBool(cond) {
+			if init != nil {
+				h.evalNode(init)
+				init = nil
+			}
+			h.evalNode(body)
+			_, exists := h.GetStackVar(returnKey)
+			if exists {
+
+				// return
+				return nil
+			}
+
+			_, exists = h.GetVar2(breakKey)
+			if exists {
+				h.DelVar(breakKey)
+				//	fmt.Printf("%+v\n", aaa)
+				break
+				// return nil
+			}
+			//for next
+			h.evalNode(le)
+		}
+	case *ast.BreakFlagStmt:
+		h.SetVar(breakKey, 1, true)
 
 	default:
 
@@ -299,17 +373,14 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 		case *ast.Scalar:
 			r1 := r.(*ast.Scalar)
 			//常量
-			h.SetVar(variable.Lexeme.Value.(string), r1.Lexeme.Value, false)
+			h.SetVar(variable.Lexeme.Value.(string), r1, true)
 		case *ast.Variable:
 			r1 := r.(*ast.Variable)
 			w := h.GetVar(r1.Lexeme.String())
-			h.SetVar(variable.Lexeme.Value.(string), w, false)
-		// case *ast.Expr:
-		// 	h.SetVar(variable.Lexeme.Value.(string), 1, true)
-		// r = h.evalExpr(r)
-		// goto repeat
+			h.SetVar(variable.Lexeme.Value.(string), w, true)
+			// goto repeat
 		default:
-			h.SetVar(variable.Lexeme.Value.(string), r, false)
+			h.SetVar(variable.Lexeme.Value.(string), r, true)
 			// panic(fmt.Sprintf("illegal node support %T", r))
 
 		}

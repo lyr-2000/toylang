@@ -44,6 +44,59 @@ func get_var(global_variables map[string]interface{}, stack *list.Stack, key str
 	return global_variables[key]
 }
 
+func del_var2(global_variables map[string]interface{}, stack *list.Stack, key string) (interface{}, bool) {
+	if stack.Len() <= 0 {
+		// get_global_var:
+		res, ok := global_variables[key]
+		if ok {
+			delete(global_variables, key)
+		}
+		return res, ok
+		// return nil, false
+	}
+
+	h := stack.Queue.Head
+	if h != nil {
+		if h.Value != nil {
+			if mp, ok := h.Value.(map[string]interface{}); ok {
+				res, ok := mp[key]
+				if ok {
+					delete(mp, key)
+					return res, ok
+				}
+			}
+		}
+		// h = h.Next
+	}
+	res, ok := global_variables[key]
+	return res, ok
+}
+
+func get_var2(global_variables map[string]interface{}, stack *list.Stack, key string) (interface{}, bool) {
+	if stack.Len() <= 0 {
+		// get_global_var:
+		res, ok := global_variables[key]
+		return res, ok
+		// return nil, false
+	}
+
+	h := stack.Queue.Head
+	if h != nil {
+		if h.Value != nil {
+			if mp, ok := h.Value.(map[string]interface{}); ok {
+				res, ok := mp[key]
+				if ok {
+					return res, ok
+				}
+			}
+		}
+		// h = h.Next
+	}
+	res, ok := global_variables[key]
+	return res, ok
+
+}
+
 func get_stack_var(global_variables map[string]interface{}, stack *list.Stack, key string) (interface{}, bool) {
 	if stack.Len() <= 0 {
 		return nil, false

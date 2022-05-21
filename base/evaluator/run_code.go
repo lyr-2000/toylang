@@ -25,6 +25,13 @@ func NewCodeRunner() *CodeRunner {
 func (h *CodeRunner) GetVar(key string) interface{} {
 	return get_var(h.Vars, h.Stack, key)
 }
+
+func (h *CodeRunner) GetVar2(key string) (interface{}, bool) {
+	return get_var2(h.Vars, h.Stack, key)
+}
+func (h *CodeRunner) DelVar(key string) (interface{}, bool) {
+	return del_var2(h.Vars, h.Stack, key)
+}
 func (h *CodeRunner) GetStackVar(key string) (interface{}, bool) {
 	return get_stack_var(h.Vars, h.Stack, key)
 }
