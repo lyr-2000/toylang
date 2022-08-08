@@ -246,9 +246,27 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 	if len(ch) == 0 {
 		return nil
 	}
-	if len(ch) == 1 || word == nil || word.Value == nil {
-		panic("not support")
+	if /* len(ch) == 1 || */ word == nil || word.Value == nil {
+		panic("not support" + fmt.Sprintf("vl=%+v", n))
 	}
+	if len(ch) == 1 {
+		//处理一元运算符 ，i++
+		if n.GetLexeme().Value == "++" {
+			// r := h.evalNode(ch[1])
+			r := h.evalNode(ch[0])
+			var res = cast.ToFloat64(r) + 1
+			// switch r.(type) {
+			// case string:
+			// 	res = fmt.Sprintf("%v%v", l, r)
+			// default:
+			// 	res = cast.ToFloat64(l) + cast.ToFloat64(r)
+			// }
+			h.SetVar(ch[0].(*ast.Variable).Lexeme.Value.(string), res, false)
+			//处理自增
+			return res
+		}
+	}
+
 	if len(ch) != 2 {
 		panic("illegal state")
 	}

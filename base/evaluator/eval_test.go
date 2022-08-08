@@ -224,3 +224,49 @@ func Test_for_each_stmt(t *testing.T) {
 	c.RunCode(tree)
 
 }
+
+func Test_FIB(t *testing.T) {
+	c := NewCodeRunner()
+	//1 ,1 ,2 3
+	code := `
+	    fn fib(n) {
+			var a=0
+			var b=1
+		//	var sum = 0;
+			for i=0;i<n;i++ {
+				sum = a+b;
+				a = b;
+				b  = sum;
+			}
+		//	println("斐波那锲数列答案：",a,"--",n);
+			return sum
+		}
+		fn fib0(n) {
+			if n <= 1{
+				return 1
+			}
+			 
+			return fib0(n-1)+fib0(n-2)
+		}
+
+		a = fib(10)
+		b = fib0(10);
+		println("get fib = ",a)
+		println("get fib = ",b)
+		println("sum= ",sum)
+	`
+	ll := lexer.NewStringLexer(code)
+	t.Logf("%+v\n", ll.ReadTokens())
+	tree := parse_source_tree(code)
+	t.Logf("%+v\n", ast.ShowTree(tree))
+
+	// defer func() {
+	// 	// bs, _ := json.Marshal(&stru)
+
+	// 	// t.Logf("%v\n", string(bs))
+	// 	t.Logf("%+v\n", c.Vars)
+	// 	t.Logf("%+v\n", c.Stack.Queue)
+	// }()
+	c.RunCode(tree)
+
+}
