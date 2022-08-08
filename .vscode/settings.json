@@ -1,8 +1,6 @@
 {
     // "workbench.colorTheme": "Atom One Light",
     "workbench.colorCustomizations": {
-        "titleBar.activeBackground": "#f498d1",
-        "titleBar.activeForeground": "#ffffff",
         "terminal.background": "#2E2A31",
         "terminal.foreground": "#BCBABE",
         "terminalCursor.background": "#BCBABE",

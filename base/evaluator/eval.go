@@ -402,3 +402,7 @@ func parse_source_tree(s string) ast.Anode {
 	return tree
 
 }
+
+func ParseTree(s string) ast.Anode {
+	return parse_source_tree(s)
+}
