@@ -2,6 +2,8 @@ package ast
 
 import (
 	"fmt"
+	"io"
+
 	"github.com/lyr-2000/toylang/base/lexer"
 
 	"github.com/xlab/treeprint"
@@ -49,6 +51,7 @@ type Anode interface {
 	GetChildren() []Anode
 	// GetParent() Anode
 	SetLexeme(t *Token)
+	Output(w io.Writer)
 	// SetNodeType(NodeType)
 }
 

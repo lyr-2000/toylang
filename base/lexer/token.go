@@ -32,6 +32,33 @@ const (
 
 	Illegal //illegal state
 )
+func (t TokenType) String() string {
+	switch t {
+	case Keyword:
+		return "keyword"
+	case Variable:
+		return "variable"
+	case Operator:
+		return "operator"
+	case Brackets:
+		return "brackets"
+	case String:
+		return "string"
+	case Char:
+		return "char"
+	case Number:
+		return "number"
+	case Boolean:
+		return "boolean"
+	case EOF:
+		return "eof"
+	case Illegal:
+		return "illegal"
+	default:
+		return "unknown"
+	}
+	return ""
+}
 
 type TokenValue = interface{}
 
@@ -55,6 +82,9 @@ func NewToken(t TokenType, v interface{}, _, _ int) *Token {
 }
 
 func (t *Token) String() string { // convert Token to string
+	if t == nil {
+		return "<NIL>"
+	}
 	return fmt.Sprintf("{type:%v,value:%v}", t.Type.String(), t.Value)
 }
 

@@ -112,6 +112,7 @@ func Test_self_op_assign(t *testing.T) {
 	a&=1
 	a|=(1<< 5)
 	print(bin(a))
+	print(typeof(a))
 	`
 	ast.RegisterOpSign(0, "^=")
 	ast.RegisterOpSign(0, "&=")
