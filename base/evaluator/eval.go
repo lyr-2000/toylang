@@ -54,7 +54,7 @@ func (h *CodeRunner) evalBool(bh ast.Node) bool {
 		return false
 	}
 
-	ret := h.evalNode(bh)
+	ret := h.EvalNode(bh)
 	switch ret.(type) {
 	case float64:
 		return cast.ToBool(int(ret.(float64)))
@@ -108,18 +108,18 @@ func (h *CodeRunner) fn_call(fn *ast.FuncStmt, caller *ast.CallFuncStmt) interfa
 			}
 			paramKey := v.GetLexeme().Value.(string)
 
-			paramVal := h.evalNode(caller.Children[i+1])
+			paramVal := h.EvalNode(caller.Children[i+1])
 			//fmt.Printf("k %v,v %v \n", paramKey, paramVal)
 			h.SetVar(paramKey, paramVal, true)
 		}
 	}
 	// call stmt
-	h.evalNode(body)
+	h.EvalNode(body)
 	return h.GetVar(returnKey)
 
 }
 
-func (h *CodeRunner) evalNode(n ast.Node) interface{} {
+func (h *CodeRunner) EvalNode(n ast.Node) interface{} {
 	if n == nil {
 		return nil
 	}
@@ -137,7 +137,7 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 		w := n.(*ast.DeclareStmt)
 		h.DebugLog.Printf("declare %#v\n", w)
 		if len(w.Children) == 2 {
-			h.SetVar(w.Children[0].GetLexeme().Value.(string), h.evalNode(w.Children[1]), true)
+			h.SetVar(w.Children[0].GetLexeme().Value.(string), h.EvalNode(w.Children[1]), true)
 		} else {
 			h.SetVar(w.Children[0].GetLexeme().Value.(string), nil, true)
 		}
@@ -152,14 +152,14 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 		for _, c := range n.GetChildren() {
 			if ret, isRet := c.(*ast.ReturnStmt); isRet {
 				// block  里面 有 return，就不执行后面的代码
-				return h.evalNode(ret)
+				return h.EvalNode(ret)
 			}
-			h.evalNode(c)
+			h.EvalNode(c)
 		}
 	case *ast.MapIndexNode:
 		m := n.(*ast.MapIndexNode)
-		arr := h.evalNode(m.GetChildren()[0])
-		key := h.evalNode(m.GetChildren()[1])
+		arr := h.EvalNode(m.GetChildren()[0])
+		key := h.EvalNode(m.GetChildren()[1])
 		h.DebugLog.Printf("evalMapIndexNode %+v, %+v\n", arr, key)
 		if _, ok := arr.([]interface{}); ok {
 			return arr.([]interface{})[cast.ToInt(key)]
@@ -176,12 +176,12 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 		body := stmt.GetBody()
 		elseNode := stmt.GetElseNode()
 		h.DebugLog.Printf("evalIfStmt %+v, %+v, %+v\n", cond, body, elseNode)
-		val := h.evalNode(cond)
+		val := h.EvalNode(cond)
 		ok := cast.ToBool(val)
 		if ok {
-			return h.evalNode(body)
+			return h.EvalNode(body)
 		}
-		return h.evalNode(elseNode)
+		return h.EvalNode(elseNode)
 
 	case *ast.Expr:
 		//left and right
@@ -196,9 +196,9 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 		ln := len(n.GetChildren())
 		for i, v := range n.GetChildren() {
 			if i == ln-1 {
-				last = h.evalNode(v)
+				last = h.EvalNode(v)
 			} else {
-				h.evalNode(v)
+				h.EvalNode(v)
 			}
 		}
 		// a==1,b==2,c==3, 逗号表达式，最后返回 c==3 结果
@@ -243,7 +243,7 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 		//return statement
 		m := n.(*ast.ReturnStmt)
 		if len(m.Children) == 1 {
-			h.SetVar(returnKey, h.evalNode(m.Children[0]), true)
+			h.SetVar(returnKey, h.EvalNode(m.Children[0]), true)
 		} else {
 			h.SetVar(returnKey, nil, true)
 		}
@@ -257,10 +257,10 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 
 		for cond == nil || h.evalBool(cond) {
 			if init != nil {
-				h.evalNode(init)
+				h.EvalNode(init)
 				init = nil
 			}
-			h.evalNode(body)
+			h.EvalNode(body)
 			_, exists := h.GetStackVar(returnKey)
 			if exists {
 
@@ -276,7 +276,7 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 				// return nil
 			}
 			//for next
-			h.evalNode(le)
+			h.EvalNode(le)
 		}
 	case *ast.BreakFlagStmt:
 		h.SetVar(breakKey, 1, true)
@@ -314,7 +314,7 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 		//处理一元运算符 ，i++
 		if n.GetLexeme().Value == "++" {
 			// r := h.evalNode(ch[1])
-			r := h.evalNode(ch[0])
+			r := h.EvalNode(ch[0])
 			var res = cast.ToFloat64(r) + 1
 			// switch r.(type) {
 			// case string:
@@ -326,6 +326,12 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 			//处理自增
 			return res
 		}
+		if ExtraOp != nil {
+			exp := cast.ToString(n.GetLexeme().Value)
+			if fn, ok := ExtraOp[exp]; ok {
+				return fn(h, n)
+			}
+		}
 	}
 
 	if len(ch) != 2 {
@@ -333,8 +339,8 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 	}
 	switch word.Value {
 	case "+":
-		l := h.evalNode(ch[0])
-		r := h.evalNode(ch[1])
+		l := h.EvalNode(ch[0])
+		r := h.EvalNode(ch[1])
 		switch l.(type) {
 		case string:
 			return fmt.Sprintf("%v%v", l, r)
@@ -342,39 +348,39 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 			return cast.ToFloat64(l) + cast.ToFloat64(r)
 		}
 	case "-":
-		return cast.ToFloat64(h.evalNode(ch[0])) - cast.ToFloat64(h.evalNode(ch[1]))
+		return cast.ToFloat64(h.EvalNode(ch[0])) - cast.ToFloat64(h.EvalNode(ch[1]))
 	case "*":
-		return cast.ToFloat64(h.evalNode(ch[0])) * cast.ToFloat64(h.evalNode(ch[1]))
+		return cast.ToFloat64(h.EvalNode(ch[0])) * cast.ToFloat64(h.EvalNode(ch[1]))
 	case "/":
-		b := cast.ToFloat64(h.evalNode(ch[1]))
+		b := cast.ToFloat64(h.EvalNode(ch[1]))
 		if b == 0 {
 			panic("cannot divide by zero")
 		}
-		return cast.ToFloat64(h.evalNode(ch[0])) / b
+		return cast.ToFloat64(h.EvalNode(ch[0])) / b
 	case "||":
-		l := h.evalNode(ch[0])
+		l := h.EvalNode(ch[0])
 		lb := cast.ToBool(l)
 		if lb {
 			return true
 		}
 		//短路 或
-		r := h.evalNode(ch[1])
+		r := h.EvalNode(ch[1])
 		return cast.ToBool(r)
 	case "&&":
 		// panic("unsupport operation")
-		l := h.evalNode(ch[0])
+		l := h.EvalNode(ch[0])
 		lb := cast.ToBool(l)
 		if !lb {
 			return false
 		}
 		//短路 或
-		r := h.evalNode(ch[1])
+		r := h.EvalNode(ch[1])
 		ret := cast.ToBool(r)
 		return ret
 	case "+=":
 		//a+=1 =>  a = a+ 1
-		l := h.evalNode(ch[0])
-		r := h.evalNode(ch[1])
+		l := h.EvalNode(ch[0])
+		r := h.EvalNode(ch[1])
 		var res interface{}
 		switch l.(type) {
 		case string:
@@ -385,8 +391,8 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 		h.SetVar(ch[0].(*ast.Variable).Lexeme.Value.(string), res, false)
 		return res
 	case "<=":
-		l := h.evalNode(ch[0])
-		r := h.evalNode(ch[1])
+		l := h.EvalNode(ch[0])
+		r := h.EvalNode(ch[1])
 		var res bool
 		switch l.(type) {
 
@@ -399,8 +405,8 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 		}
 		return res
 	case ">=":
-		l := h.evalNode(ch[0])
-		r := h.evalNode(ch[1])
+		l := h.EvalNode(ch[0])
+		r := h.EvalNode(ch[1])
 		var res bool
 		switch l.(type) {
 
@@ -413,8 +419,8 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 		}
 		return res
 	case "==":
-		l := h.evalNode(ch[0])
-		r := h.evalNode(ch[1])
+		l := h.EvalNode(ch[0])
+		r := h.EvalNode(ch[1])
 		var res bool
 		switch l.(type) {
 		case nil:
@@ -431,8 +437,8 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 		}
 		return res
 	case ">":
-		l := h.evalNode(ch[0])
-		r := h.evalNode(ch[1])
+		l := h.EvalNode(ch[0])
+		r := h.EvalNode(ch[1])
 		var res bool
 		switch l.(type) {
 		case string:
@@ -446,8 +452,8 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 		}
 		return res
 	case "<":
-		l := h.evalNode(ch[0])
-		r := h.evalNode(ch[1])
+		l := h.EvalNode(ch[0])
+		r := h.EvalNode(ch[1])
 		var res bool
 		switch l.(type) {
 		case nil:
@@ -461,7 +467,7 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 		}
 		return res
 	case "=":
-		r := h.evalNode(ch[1])
+		r := h.EvalNode(ch[1])
 		variable := ch[0].(*ast.Variable)
 		switch r.(type) {
 		case *ast.Scalar:
@@ -502,13 +508,6 @@ func SetExtrapOp(op string, fn func(h *CodeRunner, node ast.Node) any) {
 		ExtraOp = make(map[string]func(h *CodeRunner, node ast.Node) any)
 	}
 	ExtraOp[op] = fn
-}
-func init() {
-	SetExtrapOp("!=", func(h *CodeRunner, node ast.Node) any {
-		l := h.evalNode(node.GetChildren()[0])
-		r := h.evalNode(node.GetChildren()[1])
-		return l != r
-	})
 }
 
 func parseSourceTree(s string) ast.Anode {

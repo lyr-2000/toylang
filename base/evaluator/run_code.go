@@ -52,6 +52,96 @@ func (r *CodeRunner) SetFunc(name string, fn func([]interface{}) interface{}) {
 	r.Inlines[name] = fn
 }
 
+func init() {
+	var mp = map[string]struct{}{
+		"<<": {},
+		">>": {},
+		"%=": {},
+		"*=": {},
+		"/=": {},
+		"++": {},
+		"--": {},
+	}
+	lexer.MixOpDefine = func(l, r lexer.CharNum) string {
+		df := lexer.MakeString(l, r)
+		if _, ok := mp[df]; ok {
+			return string(l) + string(r)
+		}
+		return ""
+	}
+	SetExtrapOp("!=", func(h *CodeRunner, node ast.Node) any {
+		l := h.EvalNode(node.GetChildren()[0])
+		r := h.EvalNode(node.GetChildren()[1])
+		return l != r
+	})
+	// a<<1
+	// b>>1
+	SetExtrapOp("<<", func(h *CodeRunner, node ast.Node) any {
+		l := h.EvalNode(node.GetChildren()[0])
+		r := h.EvalNode(node.GetChildren()[1])
+		d := cast.ToInt64(l) << cast.ToInt64(r)
+		return d
+	})
+	SetExtrapOp(">>", func(h *CodeRunner, node ast.Node) any {
+		l := h.EvalNode(node.GetChildren()[0])
+		r := h.EvalNode(node.GetChildren()[1])
+		d := cast.ToInt64(l) >> cast.ToInt64(r)
+		return d
+	})
+	SetExtrapOp("%=", func(h *CodeRunner, node ast.Node) any {
+		left := node.GetChildren()[0]
+		l := h.EvalNode(node.GetChildren()[0])
+		r := h.EvalNode(node.GetChildren()[1])
+		d := cast.ToInt64(l) % cast.ToInt64(r)
+		v := ast.AsVariable(left)
+		if v != nil {
+			h.SetVar(v.GetVarName(), d, true)
+		}
+		return d
+	})
+	SetExtrapOp("*=", func(h *CodeRunner, node ast.Node) any {
+		left := node.GetChildren()[0]
+		l := h.EvalNode(node.GetChildren()[0])
+		r := h.EvalNode(node.GetChildren()[1])
+		d := cast.ToInt64(l) * cast.ToInt64(r)
+		v := ast.AsVariable(left)
+		if v != nil {
+			h.SetVar(v.GetVarName(), d, true)
+		}
+		return d
+	})
+	SetExtrapOp("/=", func(h *CodeRunner, node ast.Node) any {
+		left := node.GetChildren()[0]
+		l := h.EvalNode(node.GetChildren()[0])
+		r := h.EvalNode(node.GetChildren()[1])
+		d := cast.ToInt64(l) / cast.ToInt64(r)
+		v := ast.AsVariable(left)
+		if v != nil {
+			h.SetVar(v.GetVarName(), d, true)
+		}
+		return d
+	})
+	SetExtrapOp("++", func(h *CodeRunner, node ast.Node) any {
+		left := node.GetChildren()[0]
+		l := h.EvalNode(node.GetChildren()[0])
+		v := ast.AsVariable(left)
+		if v != nil {
+			h.SetVar(v.GetVarName(), cast.ToInt64(l)+1, true)
+		}
+		return l
+	})
+	SetExtrapOp("--", func(h *CodeRunner, node ast.Node) any {
+		left := node.GetChildren()[0]
+		l := h.EvalNode(node.GetChildren()[0])
+		v := ast.AsVariable(left)
+		if v != nil {
+			h.SetVar(v.GetVarName(), cast.ToInt64(l)-1, true)
+		}
+		return l
+	})
+
+}
+
 func setFunc(r *CodeRunner) {
 	r.SetFunc("fatal", func(params []interface{}) interface{} {
 		msg := fmt.Sprintf("fatal call: %v", params[0])
@@ -254,6 +344,9 @@ func (h *CodeRunner) GetStackVar(key string) (interface{}, bool) {
 }
 
 func (h *CodeRunner) SetVar(k string, v interface{}, isStackAssign bool) {
+	if k == "" {
+		return
+	}
 	if v == nil {
 		set_var(h.Vars, h.Stack, k, v, isStackAssign)
 		return
@@ -274,7 +367,7 @@ func (h *CodeRunner) SetVar(k string, v interface{}, isStackAssign bool) {
 			}
 			// h.SetVar(k, varnode, isStk)
 		default:
-			h.SetVar(k, h.evalNode(v.(ast.Anode)), isStackAssign)
+			h.SetVar(k, h.EvalNode(v.(ast.Anode)), isStackAssign)
 		}
 
 		return
@@ -297,7 +390,7 @@ func (c *CodeRunner) RunCode(t ast.Node) int {
 	if t == nil {
 		return 0
 	}
-	c.evalNode(t)
+	c.EvalNode(t)
 	return int(c.ExitCode)
 }
 

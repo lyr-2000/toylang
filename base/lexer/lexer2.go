@@ -58,13 +58,13 @@ func (l *LexerWithCache) PutBackStr(s string) {
 func (l *LexerWithCache) ClearQueue() {
 	list.QueueClear(l.que) //clear queue
 }
-func (l *LexerWithCache) Peek() Char_ {
+func (l *LexerWithCache) Peek() CharNum {
 	if l.que.ListCnt > 0 {
 		return list.QueuePeek(l.que).(char)
 	}
 	return l.Scanner.Peek()
 }
-func (l *LexerWithCache) Next() Char_ {
+func (l *LexerWithCache) Next() CharNum {
 	if l.que.ListCnt > 0 {
 		poll := list.QueuePoll(l.que)
 		return poll.(char)

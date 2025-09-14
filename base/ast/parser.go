@@ -52,6 +52,20 @@ type Anode interface {
 	// SetNodeType(NodeType)
 }
 
+
+func AsVariable(n Anode) *Variable {
+	if v, ok := n.(*Variable); ok {
+		return v
+	}
+	return nil
+}
+func (r *Variable) GetVarName() string {
+	if r == nil {
+		return ""
+	}
+	return r.GetLexeme().Value.(string)
+}
+
 // // 设置 node type
 // func (u *BaseNode) GetNodeType() NodeType {
 // 	return u.NodeType
@@ -78,14 +92,14 @@ func (u *BaseNode) SetLexeme(t *Token) {
 
 type ILexer = lexer.Lexer
 
-// func (n *BaseNode) String() string {
-// 	return toDfsPatternStringNode(n)
-// }
+//	func (n *BaseNode) String() string {
+//		return toDfsPatternStringNode(n)
+//	}
 func ShowTree(n Anode) string {
 	return toDfsPatternStringNode(n)
 }
 
-//tree Print
+// tree Print
 func toDfsPatternStringNode(n Anode) string {
 	if n == nil {
 		return "nil tree"

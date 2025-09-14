@@ -266,6 +266,10 @@ func (e *Expr) parseTop2(t *Tokens) Node {
 	}
 	return a
 }
+
+
+
+
 func newBinaryExpr(tk *Token) *Expr {
 	var ptr = new(Expr)
 	ptr.Lexeme = tk

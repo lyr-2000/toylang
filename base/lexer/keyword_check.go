@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"strings"
 	"unicode"
 )
 
@@ -15,7 +16,15 @@ var (
 )
 */
 type char = rune
-type Char_ = char
+type CharNum = char
+
+func MakeString(c ...CharNum) string {
+	var buf strings.Builder
+	for _, v := range c {
+		buf.WriteRune(v)
+	}
+	return buf.String()
+}
 
 func IsSpace(c char) bool {
 

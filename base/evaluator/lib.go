@@ -17,7 +17,7 @@ func (h *CodeRunner) libPrint_(p []ast.Anode, ln bool) int {
 	var input strings.Builder
 	//第一个参数是 print, 后面的是参数
 	for _, v := range p[1:] {
-		a := h.evalNode(v)
+		a := h.EvalNode(v)
 		input.WriteString(fmt.Sprintf("%v", a))
 	}
 	if ln {
@@ -29,7 +29,7 @@ func (h *CodeRunner) libPrint_(p []ast.Anode, ln bool) int {
 }
 func (h *CodeRunner) libExit(p []ast.Anode) uint8 {
 	for _, v := range p[1:] {
-		a := h.evalNode(v)
+		a := h.EvalNode(v)
 		h.ExitCode = cast.ToUint8(a)
 	}
 	return h.ExitCode
@@ -41,7 +41,7 @@ func (h *CodeRunner) CallInline(fnName string, params []ast.Anode) (interface{},
 		if fn != nil {
 			var args []interface{}
 			for _, v := range params[1:] {
-				args = append(args, h.evalNode(v))
+				args = append(args, h.EvalNode(v))
 			}
 			return fn(args), true
 		}

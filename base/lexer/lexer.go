@@ -243,9 +243,19 @@ func (l *BaseLexer) readString_() *Token {
 	return makeToken(String, buf.String())
 }
 
-func mixOperator_(l, r char) string {
+var (
+	MixOpDefine func(l, r char) string
+)
+
+func mixOperatorRead(l, r char) string {
 	if r == -1 {
 		return string(l)
+	}
+	if MixOpDefine != nil {
+		d := MixOpDefine(l, r)
+		if d != "" {
+			return d
+		}
 	}
 	if l == '+' {
 		if r == '+' {
@@ -347,11 +357,13 @@ func (l *BaseLexer) readOperator_() *Token {
 	l.Next()
 	var R = l.Peek()
 	if IsOperator(R) { //mix operator
-		var res = mixOperator_(L, R)
+		var res = mixOperatorRead(L, R)
 		//l.Next() // eat r
 		if len(res) == 2 {
+			// example: ++, ==, !=
 			l.Next() //eat R
 		}
+		// example: >,<,=
 		return makeToken(Operator, res)
 	}
 

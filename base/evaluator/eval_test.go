@@ -105,6 +105,23 @@ func Test_float(t *testing.T) {
 	runner.RunCode(node)
 }
 
+func Test_self_plus(t *testing.T) {
+	code := `
+	a = 1
+	print(a)
+	a++
+	a--
+	a--
+	a--
+	// ++a not support ++a  or --a
+	print(a)
+	`
+	node := ParseTree(code)
+	t.Logf("%+v\n", ast.ShowTree(node))
+	runner := NewCodeRunner()
+	runner.RunCode(node)
+}
+
 func Test_assign(t *testing.T) {
 	code := `
 	a = map()
