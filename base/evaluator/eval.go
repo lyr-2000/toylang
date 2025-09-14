@@ -481,10 +481,34 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 
 		// h.SetVar(variable.Lexeme.String(), r, false)
 	default:
+		if ExtraOp != nil {
+			exp := cast.ToString(word.Value)
+			if fn, ok := ExtraOp[exp]; ok {
+				return fn(h, n)
+			}
+		}
 		panic(fmt.Sprintf("unsupport operation %+v ,%+v", n, word))
 
 	}
 	return nil
+}
+
+var (
+	ExtraOp map[string]func(h *CodeRunner, node ast.Node) any
+)
+
+func SetExtrapOp(op string, fn func(h *CodeRunner, node ast.Node) any) {
+	if ExtraOp == nil {
+		ExtraOp = make(map[string]func(h *CodeRunner, node ast.Node) any)
+	}
+	ExtraOp[op] = fn
+}
+func init() {
+	SetExtrapOp("!=", func(h *CodeRunner, node ast.Node) any {
+		l := h.evalNode(node.GetChildren()[0])
+		r := h.evalNode(node.GetChildren()[1])
+		return l != r
+	})
 }
 
 func parseSourceTree(s string) ast.Anode {

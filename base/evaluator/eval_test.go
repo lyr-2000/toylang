@@ -20,11 +20,11 @@ import (
 func Test_aaa(t *testing.T) {
 	h := big.NewFloat(0)
 	h.SetString("1e9+7")
-	w,_ := h.Float64()
-	t.Log("bigFloat",w)
+	w, _ := h.Float64()
+	t.Log("bigFloat", w)
 	f, _ := strconv.ParseFloat("1e9+7", 64)
-	t.Log("castFloat2",f)
-	t.Log("float:",cast.ToFloat64("1e9+7"))
+	t.Log("castFloat2", f)
+	t.Log("float:", cast.ToFloat64("1e9+7"))
 	var b float64 = 1.3
 	fmt.Printf("%+v\n", cast.ToInt64(b)&1)
 	var a int = 1
@@ -32,6 +32,61 @@ func Test_aaa(t *testing.T) {
 
 }
 
+func Test_fatal(t *testing.T) {
+	t.Run("test_fatal", func(t *testing.T) {
+		code := `
+	fatal("hello world")
+	`
+		node := ParseTree(code)
+		t.Logf("%+v\n", ast.ShowTree(node))
+		runner := NewCodeRunner()
+		_, err := runner.RunCodeRecover(node)
+		if err != nil {
+			t.Logf("fatal call error: %v", err)
+		}
+	})
+	t.Run("test_recover", func(t *testing.T) {
+		code := `
+		recover()
+		throw(1001,"errorMsg")
+		print(recover())
+		print(recover())
+		print("2 ",recover()==nil)
+		print("1 ",recover()!=nil)
+		throw(1001,"errorMsg")
+		print(recover()!=nil)
+		print(throw(1001,"errorMsg") != nil)
+		print(throw(1002,"errorMsg") != nil)
+		recover()
+		`
+		node := ParseTree(code)
+		t.Logf("%+v\n", ast.ShowTree(node))
+		runner := NewCodeRunner()
+		runner.RunCode(node)
+	})
+	t.Run("func_call", func(t *testing.T) {
+		code := `
+		fn a() {
+			throw (1001,"errorMsg")
+			return 0
+		}
+		a()
+		w = recover()
+		if (w!=nil) {
+			print("recover error: ",w)
+		}
+		print("OK")
+		print("exitCode:",get(w,"errCode"))
+		print("exitMsg:",get(w,"errMsg"))
+		print(get(w,"errCode") < 0)
+		exit(get(w,"errCode"))
+		`
+		node := ParseTree(code)
+		t.Logf("%+v\n", ast.ShowTree(node))
+		runner := NewCodeRunner()
+		runner.RunCode(node)
+	})
+}
 func Test_float(t *testing.T) {
 	code := `
 	a = float64("1e3")+1
@@ -40,6 +95,9 @@ func Test_float(t *testing.T) {
 	print(a,b,c,d,e)
 	print(max(3,2,1))
 	print(min(3,2,1))
+	throw(1001,"errorMsg")
+	print(recover())
+	print(recover())
 	`
 	node := ParseTree(code)
 	t.Logf("%+v\n", ast.ShowTree(node))
@@ -62,11 +120,11 @@ func Test_assign(t *testing.T) {
 	node := ParseTree(code)
 	t.Logf("%+v\n", ast.ShowTree(node))
 	type StructValue struct {
-		Name string
+		Name  string
 		Value string
 	}
 	var a = &StructValue{
-		Name: "hello",
+		Name:  "hello",
 		Value: "world",
 	}
 	runner := NewCodeRunner()

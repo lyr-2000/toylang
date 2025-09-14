@@ -23,8 +23,10 @@ type CodeRunner struct {
 	Vars      map[string]interface{}
 	Stack     *list.Stack
 	ExitCode  uint8
+	ErrCode   uint64
+	ErrMsg    string
 	PrevEval  uint8
-	stackDeep int
+	stackDeep uint32
 
 	DebugLog *log.Logger
 	vmOutput io.Writer
@@ -49,7 +51,51 @@ func (r *CodeRunner) SetFunc(name string, fn func([]interface{}) interface{}) {
 	}
 	r.Inlines[name] = fn
 }
+
 func setFunc(r *CodeRunner) {
+	r.SetFunc("fatal", func(params []interface{}) interface{} {
+		msg := fmt.Sprintf("fatal call: %v", params[0])
+		r.ErrCode = 1
+		r.ErrMsg = msg
+		r.VmLogger.Panicf(msg)
+		return nil
+	})
+	r.SetFunc("recover", func(params []interface{}) interface{} {
+		if r.ErrCode == 0 {
+			return nil
+		}
+		ret := map[string]any{
+			"errCode": r.ErrCode,
+			"errMsg":  r.ErrMsg,
+		}
+		r.ErrCode = 0
+		r.ErrMsg = ""
+		return ret
+	})
+	// throw(1001,"errorMsg")
+	r.SetFunc("throw", func(params []interface{}) interface{} {
+		if len(params) <= 0 {
+			r.ErrCode = 1
+			r.ErrMsg = "throw error"
+		}
+		if len(params) <= 1 {
+			r.ErrCode = 1
+			r.ErrMsg = cast.ToString(params[0])
+			if r.ErrMsg == "" {
+				r.ErrMsg = "throw error"
+			}
+		}
+		r.ErrCode = cast.ToUint64(params[0])
+		r.ErrMsg = cast.ToString(params[1])
+		if r.ErrCode == 0 {
+			r.ErrCode = 1
+		}
+		ret := map[string]any{
+			"errCode": r.ErrCode,
+			"errMsg":  r.ErrMsg,
+		}
+		return ret
+	})
 	r.SetFunc("int64", func(params []interface{}) interface{} {
 		p := params[0]
 		return cast.ToInt64(p)
@@ -181,7 +227,6 @@ func setFunc(r *CodeRunner) {
 		d := arrayVal{Value: params}
 		return d.Max()
 	})
-
 
 }
 func NewCodeRunner() *CodeRunner {

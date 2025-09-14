@@ -1,0 +1,21 @@
+fn Main() {
+    throw (1001,"errorMsg")
+    return 0
+}
+
+retCode1 = Main()
+w = recover()
+if (w!=nil) {
+    print("recover error: ",w)
+    print("exitCode:",get(w,"errCode"))
+    print("exitMsg:",get(w,"errMsg"))
+    print(get(w,"errCode") < 0)
+    exit(get(w,"errCode"))
+}else {
+
+
+    print("outputMsg","OK")
+    print("OK")
+    print("retCode",retCode1)
+    exit(0)
+}
