@@ -3,9 +3,9 @@ package evaluator
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/lyr-2000/toylang/base/ast"
+	"github.com/lyr-2000/toylang/base/lexer"
 	"testing"
-	"toylang/base/ast"
-	"toylang/base/lexer"
 
 	"github.com/spf13/cast"
 )
@@ -18,6 +18,57 @@ func Test_aaa(t *testing.T) {
 
 }
 
+func Test_prevEval(t *testing.T) {
+	t.Run("test-Prev_eval1-0", func(t *testing.T) {
+		code := `
+	A>B
+	`
+		node := ParseTree(code)
+		runner := NewCodeRunner()
+		runner.SetVar("A", 100, true)
+		runner.SetVar("B", 2, true)
+		runner.RunCode(node)
+		t.Logf("pe %+v\n", runner.PrevEval)
+		t.Logf("%+v\n", runner.ExitCode)
+
+	})
+	t.Run("test-Prev_eval21", func(t *testing.T) {
+		code := `
+	A<B
+	`
+		node := ParseTree(code)
+		runner := NewCodeRunner()
+		runner.SetVar("A", 100, true)
+		runner.SetVar("B", 2, true)
+		runner.RunCode(node)
+		t.Logf("pe %+v\n", runner.PrevEval)
+		t.Logf("%+v\n", runner.ExitCode)
+
+	})
+}
+func Test_eval(t *testing.T) {
+	s := `
+	if (A>B) &&  (C< D)   {
+		.exit(1)
+	}else if 1==1{
+		.exit(2)	
+	}
+	// if h == "g" {
+	// 	.print(h)
+	// 	.exit(3)
+	// }
+	`
+	node := ParseTree(s)
+	runner := NewCodeRunner()
+	runner.SetVar("A", 100, true)
+	runner.SetVar("B", 2, true)
+	runner.SetVar("C", 3, true)
+	runner.SetVar("D", 4, true)
+	runner.RunCode(node)
+	t.Logf("pe %+v\n", runner.PrevEval)
+	t.Logf("%+v\n", runner.ExitCode)
+
+}
 func Test_run_code(t *testing.T) {
 	c := NewCodeRunner()
 	code := `

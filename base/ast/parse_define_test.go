@@ -2,7 +2,7 @@ package ast
 
 import (
 	"testing"
-	"toylang/base/lexer"
+	"github.com/lyr-2000/toylang/base/lexer"
 )
 
 func Test_define_astnode(t *testing.T) {

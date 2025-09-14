@@ -1,6 +1,6 @@
 package sdd
 
-import "toylang/base/ast"
+import "github.com/lyr-2000/toylang/base/ast"
 
 func IsBlock(node Node) bool {
 

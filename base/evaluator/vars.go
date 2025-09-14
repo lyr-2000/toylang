@@ -1,9 +1,9 @@
 package evaluator
 
 import (
-	"toylang/base/ast"
-	"toylang/base/lexer"
-	"toylang/base/list"
+	"github.com/lyr-2000/toylang/base/ast"
+	"github.com/lyr-2000/toylang/base/lexer"
+	"github.com/lyr-2000/toylang/base/list"
 
 	"github.com/spf13/cast"
 )

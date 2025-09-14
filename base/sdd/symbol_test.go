@@ -2,7 +2,7 @@ package sdd
 
 import (
 	"testing"
-	"toylang/base/lexer"
+	"github.com/lyr-2000/toylang/base/lexer"
 )
 
 func Test_symbol_add(t *testing.T) {

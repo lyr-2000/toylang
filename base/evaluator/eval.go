@@ -3,8 +3,8 @@ package evaluator
 import (
 	"fmt"
 	"strings"
-	"toylang/base/ast"
-	"toylang/base/lexer"
+	"github.com/lyr-2000/toylang/base/ast"
+	"github.com/lyr-2000/toylang/base/lexer"
 
 	"github.com/spf13/cast"
 )
@@ -137,7 +137,11 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 
 	case *ast.Expr:
 		//left and right
-		return h.evalExpr(n)
+		pe := h.evalExpr(n)
+		if f,ok := pe.(bool);ok {
+			h.setPrevEval(f)
+		}
+		return pe
 	case *ast.ExprGroups:
 		var last interface{}
 		ln := len(n.GetChildren())
@@ -232,9 +236,13 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 	return nil
 }
 
-// func parseVar1(a, b interface{}, op string) interface{} {
-// 	return nil
-// }
+func (h *CodeRunner) setPrevEval(b bool) {
+	if b {
+		h.PrevEval = 1
+	}else {
+		h.PrevEval = 0
+	}
+}
 
 func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 	if n == nil {
@@ -300,7 +308,16 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 		r := h.evalNode(ch[1])
 		return cast.ToBool(r)
 	case "&&":
-		panic("unsupport operation")
+		// panic("unsupport operation")
+		l := h.evalNode(ch[0])
+		lb := cast.ToBool(l)
+		if !lb {
+			return false
+		}
+		//短路 或
+		r := h.evalNode(ch[1])
+		ret := cast.ToBool(r)
+		return ret
 	case "+=":
 		//a+=1 =>  a = a+ 1
 		l := h.evalNode(ch[0])
@@ -347,13 +364,17 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 		r := h.evalNode(ch[1])
 		var res bool
 		switch l.(type) {
+		case nil:
+			return r == nil
 
 		case string:
 			// a.compare b => -1 => a-b == -1  ==> a < b
 			res = strings.Compare(l.(string), fmt.Sprintf("%+v", r)) == 0
 
-		default:
+		case float64,int64,uint64,uint32,int32,uint16,int16,uint8,int8:
 			res = cast.ToFloat64(l) == cast.ToFloat64(r)
+		default:
+			res = cast.ToString(l) == cast.ToString(r)
 		}
 		return res
 	case ">":
@@ -361,10 +382,11 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 		r := h.evalNode(ch[1])
 		var res bool
 		switch l.(type) {
-
 		case string:
 			// a.compare b => -1 => a-b == -1  ==> a < b
 			res = strings.Compare(l.(string), fmt.Sprintf("%+v", r)) > 0
+		case nil:
+			return false
 
 		default:
 			res = cast.ToFloat64(l) > cast.ToFloat64(r)
@@ -375,7 +397,8 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 		r := h.evalNode(ch[1])
 		var res bool
 		switch l.(type) {
-
+		case nil:
+			return false
 		case string:
 			// a.compare b => -1 => a-b == -1  ==> a < b
 			res = strings.Compare(l.(string), fmt.Sprintf("%+v", r)) < 0

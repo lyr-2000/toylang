@@ -1,6 +1,6 @@
 package ast
 
-import "toylang/base/lexer"
+import "github.com/lyr-2000/toylang/base/lexer"
 
 func isExpr__(n *lexer.Token) bool {
 	if n == nil {

@@ -3,8 +3,8 @@ package sdd
 import (
 	"fmt"
 	"strings"
-	"toylang/base/ast"
-	"toylang/base/lexer"
+	"github.com/lyr-2000/toylang/base/ast"
+	"github.com/lyr-2000/toylang/base/lexer"
 )
 
 type Symbol struct {

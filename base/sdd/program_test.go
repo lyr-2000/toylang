@@ -2,7 +2,7 @@ package sdd
 
 import (
 	"testing"
-	"toylang/base/ast"
+	"github.com/lyr-2000/toylang/base/ast"
 )
 
 func Test_parse_cmd(t *testing.T) {

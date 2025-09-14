@@ -2,7 +2,7 @@ package ast
 
 import (
 	"fmt"
-	"toylang/base/lexer"
+	"github.com/lyr-2000/toylang/base/lexer"
 )
 
 func parseDeclareStmt(t *Tokens) Anode {

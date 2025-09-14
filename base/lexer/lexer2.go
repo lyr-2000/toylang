@@ -3,7 +3,7 @@ package lexer
 import (
 	"bytes"
 	"text/scanner"
-	"toylang/base/list"
+	"github.com/lyr-2000/toylang/base/list"
 )
 
 /*

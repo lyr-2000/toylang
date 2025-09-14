@@ -3,11 +3,13 @@ package evaluator
 import (
 	"fmt"
 	"strings"
-	"toylang/base/ast"
+
+	"github.com/lyr-2000/toylang/base/ast"
+	"github.com/spf13/cast"
 )
 
 func IsLibFn(fn string) bool {
-	return fn == "print" || fn == "printf" || fn == "println"
+	return fn == "print" || fn == "printf" || fn == "println" || fn == "exit"
 }
 
 // 打印内置函数
@@ -25,6 +27,13 @@ func (h *CodeRunner) libPrint_(p []ast.Anode, ln bool) int {
 	}
 	return 0
 }
+func (h *CodeRunner) libExit(p []ast.Anode) uint8 {
+	for _, v := range p[1:]{
+		a := h.evalNode(v)
+		h.ExitCode = cast.ToUint8(a)
+	}
+	return h.ExitCode
+}
 
 func (h *CodeRunner) libFnCall(fnName string, paramNode []ast.Anode) interface{} {
 	switch fnName {
@@ -33,8 +42,9 @@ func (h *CodeRunner) libFnCall(fnName string, paramNode []ast.Anode) interface{}
 	case "println":
 
 		return h.libPrint_(paramNode, true)
+	case "exit":
+		return h.libExit(paramNode)
 	default:
-
 	}
 	return 0
 }

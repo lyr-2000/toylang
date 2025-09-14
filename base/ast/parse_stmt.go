@@ -2,7 +2,7 @@ package ast
 
 import (
 	"strings"
-	"toylang/base/lexer"
+	"github.com/lyr-2000/toylang/base/lexer"
 )
 
 type Stmt struct {

@@ -2,8 +2,8 @@ package sdd
 
 import (
 	"fmt"
-	"toylang/base/ast"
-	"toylang/base/lexer"
+	"github.com/lyr-2000/toylang/base/ast"
+	"github.com/lyr-2000/toylang/base/lexer"
 )
 
 // 实现三地址代码转换
