@@ -1,14 +1,39 @@
 package main
 
-import "fmt"
+import (
+	"flag"
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/lyr-2000/toylang/base/evaluator"
+)
 
 func main() {
+	var (
+		filePath string
+	)
 
-	fmt.Println("aa--")
-	a := 1
+	flag.StringVar(&filePath, "f", "", "file path")
+	flag.Parse()
 
-	if a == 1 {
-		fmt.Printf("%+v\n", a)
-		// panic("a")
+	if filePath == "" {
+		fmt.Println("file path is required")
+		return
+	}
+
+	code, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Println("read file error:", err)
+		return
+	}
+
+	vm := evaluator.NewCodeRunner()
+	exit,err := vm.ParseAndRunRecover(string(code))
+	if err != nil {
+		log.Fatalf("panic error: %v", err)
+	}
+	if exit != 0 {
+		log.Fatalf("exit code: %d", exit)
 	}
 }

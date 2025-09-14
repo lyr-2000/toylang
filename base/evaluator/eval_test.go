@@ -3,9 +3,14 @@ package evaluator
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"os"
+	"strings"
+	"testing"
+
 	"github.com/lyr-2000/toylang/base/ast"
 	"github.com/lyr-2000/toylang/base/lexer"
-	"testing"
 
 	"github.com/spf13/cast"
 )
@@ -25,6 +30,7 @@ func Test_prevEval(t *testing.T) {
 	`
 		node := ParseTree(code)
 		runner := NewCodeRunner()
+		runner.DebugLog = log.New(os.Stdout, "[Test_prevEval]", log.LstdFlags)
 		runner.SetVar("A", 100, true)
 		runner.SetVar("B", 2, true)
 		runner.RunCode(node)
@@ -45,11 +51,67 @@ func Test_prevEval(t *testing.T) {
 		t.Logf("%+v\n", runner.ExitCode)
 
 	})
+	t.Run("test-Prev_eval41", func(t *testing.T) {
+		code := `
+	contains A B && A>B
+	`
+		node := ParseTree(code)
+		runner := NewCodeRunner()
+		runner.SetFunc("contains", func(params []interface{}) interface{} {
+			t.Logf("Contains Call! %+v\n", params)
+			return strings.Contains(cast.ToString(params[0]),cast.ToString(params[1]))
+		})
+		t.Logf("%v\n", ast.ShowTree(node))
+
+		runner.SetVar("A", 100, true)
+		runner.SetVar("B", 1, true)
+		runner.RunCode(node)
+		t.Logf("prev_Eval %+v\n", runner.PrevEval)
+		t.Logf("%+v\n", runner.ExitCode)
+
+	})
+	t.Run("test-Prev_eval31x", func(t *testing.T) {
+		code := `
+	contains(A,B) && A>B
+	`
+		node := ParseTree(code)
+		t.Logf("%v\n", ast.ShowTree(node))
+		runner := NewCodeRunner()
+		runner.SetFunc("contains", func(params []interface{}) interface{} {
+			t.Logf("Contains Call! %+v\n", params)
+			return strings.Contains(cast.ToString(params[0]),cast.ToString(params[1]))
+		})
+
+		runner.SetVar("A", 100, true)
+		runner.SetVar("B", 1, true)
+		runner.RunCode(node)
+		t.Logf("prev_Eval %+v\n", runner.PrevEval)
+		t.Logf("%+v\n", runner.ExitCode)
+
+	})
+}
+
+func Test_array(t *testing.T) {
+	code := `
+	var a = array(1,2,3)
+	print("\n")
+	print(a[0])
+	var mpValue = map("a","hello\n","b",2)
+	print(mpValue["a"])
+	print(len(mpValue["a"]))
+	print("===")
+	`
+	node := ParseTree(code)
+	// t.Logf("%v\n", ast.ShowTree(node))
+	runner := NewCodeRunner()
+	runner.DebugLog.SetOutput(io.Discard)
+	// runner.Logger = log.New(os.Stdout, "[Test_array]", log.LstdFlags)
+	runner.RunCode(node)
 }
 func Test_eval(t *testing.T) {
 	s := `
 	if (A>B) &&  (C< D)   {
-		.exit(1)
+		exit(1)
 	}else if 1==1{
 		.exit(2)	
 	}
@@ -60,6 +122,7 @@ func Test_eval(t *testing.T) {
 	`
 	node := ParseTree(s)
 	runner := NewCodeRunner()
+	t.Logf("%v\n", ast.ShowTree(node))
 	runner.SetVar("A", 100, true)
 	runner.SetVar("B", 2, true)
 	runner.SetVar("C", 3, true)
@@ -77,15 +140,15 @@ func Test_run_code(t *testing.T) {
 	a = 1+b; 
 	b = "hello world" + b;
 	fn app() {
-		.print (a,b,"\nhello world")
+		print (a,b,"\nhello world")
 		// a = 99999
-		.print (a);
+		print (a);
 		 a = 88;
 		.print("global a=",a)
 		var a = 999; 
-		.print("app -> stack a=",a);
+		print("app -> stack a=",a);
 		a = 888888
-		.print("app call a=",a)
+		print("app call a=",a)
 		return 666
 	}
 
@@ -106,7 +169,7 @@ func Test_run_code(t *testing.T) {
 	 .println("666")
 
 	`
-	tree := parse_source_tree(code)
+	tree := parseSourceTree(code)
 	t.Logf("%+v\n", ast.ShowTree(tree))
 	c.RunCode(tree)
 	bs, _ := json.Marshal(c)
@@ -142,7 +205,7 @@ func Test_run_code111(t *testing.T) {
 
 
 	`
-	tree := parse_source_tree(code)
+	tree := parseSourceTree(code)
 	t.Logf("%+v\n", ast.ShowTree(tree))
 	c.RunCode(tree)
 	bs, _ := json.Marshal(c)
@@ -172,7 +235,7 @@ func Test_run_plus_plus(t *testing.T) {
 	`
 	ll := lexer.NewStringLexer(code)
 	t.Logf("%+v\n", ll.ReadTokens())
-	tree := parse_source_tree(code)
+	tree := parseSourceTree(code)
 	t.Logf("%+v\n", ast.ShowTree(tree))
 	c.RunCode(tree)
 	bs, _ := json.Marshal(c)
@@ -201,7 +264,7 @@ func Test_run_if(t *testing.T) {
 	`
 	ll := lexer.NewStringLexer(code)
 	t.Logf("%+v\n", ll.ReadTokens())
-	tree := parse_source_tree(code)
+	tree := parseSourceTree(code)
 	t.Logf("%+v\n", ast.ShowTree(tree))
 	c.RunCode(tree)
 	bs, _ := json.Marshal(c)
@@ -232,7 +295,7 @@ func Test_fib_stack_call(t *testing.T) {
 	`
 	ll := lexer.NewStringLexer(code)
 	t.Logf("%+v\n", ll.ReadTokens())
-	tree := parse_source_tree(code)
+	tree := parseSourceTree(code)
 	t.Logf("%+v\n", ast.ShowTree(tree))
 
 	defer func() {
@@ -262,7 +325,7 @@ func Test_for_each_stmt(t *testing.T) {
 	`
 	ll := lexer.NewStringLexer(code)
 	t.Logf("%+v\n", ll.ReadTokens())
-	tree := parse_source_tree(code)
+	tree := parseSourceTree(code)
 	t.Logf("%+v\n", ast.ShowTree(tree))
 
 	defer func() {
@@ -308,7 +371,7 @@ func Test_FIB(t *testing.T) {
 	`
 	ll := lexer.NewStringLexer(code)
 	t.Logf("%+v\n", ll.ReadTokens())
-	tree := parse_source_tree(code)
+	tree := parseSourceTree(code)
 	t.Logf("%+v\n", ast.ShowTree(tree))
 
 	// defer func() {

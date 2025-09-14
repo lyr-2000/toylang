@@ -1,6 +1,6 @@
 module github.com/lyr-2000/toylang
 
-go 1.17
+go 1.23.4
 
 require (
 	github.com/smartystreets/goconvey v1.7.2

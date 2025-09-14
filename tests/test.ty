@@ -1,0 +1,14 @@
+
+fn call1(inputStr) {
+    arr = array(1,2,3)
+    print(arr[2])
+    //print(arr[3])
+    print(1,2,3)
+    set(arr,0,2)
+    print(arr)
+    print("inputStr",inputStr);
+    exit(0)
+}
+
+call1("~")
+

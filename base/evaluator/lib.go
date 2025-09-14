@@ -9,7 +9,7 @@ import (
 )
 
 func IsLibFn(fn string) bool {
-	return fn == "print" || fn == "printf" || fn == "println" || fn == "exit"
+	return fn == "print" || fn == "echo" || fn == "printf" || fn == "println" || fn == "exit"
 }
 
 // 打印内置函数
@@ -21,24 +21,41 @@ func (h *CodeRunner) libPrint_(p []ast.Anode, ln bool) int {
 		input.WriteString(fmt.Sprintf("%v", a))
 	}
 	if ln {
-		fmt.Println(input.String())
+		fmt.Fprintln(h.vmOutput, input.String())
 	} else {
-		fmt.Print(input.String())
+		fmt.Fprint(h.vmOutput, input.String())
 	}
 	return 0
 }
 func (h *CodeRunner) libExit(p []ast.Anode) uint8 {
-	for _, v := range p[1:]{
+	for _, v := range p[1:] {
 		a := h.evalNode(v)
 		h.ExitCode = cast.ToUint8(a)
 	}
 	return h.ExitCode
 }
 
+func (h *CodeRunner) CallInline(fnName string, params []ast.Anode) (interface{}, bool) {
+	if h.Inlines != nil {
+		fn := h.Inlines[fnName]
+		if fn != nil {
+			var args []interface{}
+			for _, v := range params[1:] {
+				args = append(args, h.evalNode(v))
+			}
+			return fn(args), true
+		}
+	}
+	return nil, false
+
+}
+
 func (h *CodeRunner) libFnCall(fnName string, paramNode []ast.Anode) interface{} {
 	switch fnName {
-	case "print":
+	case "echo":
 		return h.libPrint_(paramNode, false)
+	case "print":
+		return h.libPrint_(paramNode, true)
 	case "println":
 
 		return h.libPrint_(paramNode, true)

@@ -2,9 +2,9 @@ package evaluator
 
 import (
 	"fmt"
-	"strings"
 	"github.com/lyr-2000/toylang/base/ast"
 	"github.com/lyr-2000/toylang/base/lexer"
+	"strings"
 
 	"github.com/spf13/cast"
 )
@@ -21,14 +21,7 @@ func (h *CodeRunner) evalBool(bh ast.Node) bool {
 	if bh == nil {
 		return false
 	}
-	//fmt.Printf("bool expr %+v  %T\n", bh.GetChildren()[0], bh)
-	// l := bh.GetLexeme()
-	// if l == nil {
-	// 	panicf("无法解析 bool 表达式")
-	// }
-	// if l.Type == lexer.Boolean {
-	// 	return cast.ToBool(l.Value)
-	// }
+	
 	ret := h.evalNode(bh)
 	switch ret.(type) {
 	case float64:
@@ -36,14 +29,11 @@ func (h *CodeRunner) evalBool(bh ast.Node) bool {
 	default:
 
 	}
-	//fmt.Printf("ret=%v %T", ret, ret)
 	return cast.ToBool(ret)
 
 }
 
-// func (h *CodeRunner) getVar2(key string) (interface{},present) {
-// 	return
-// }
+
 func (h *CodeRunner) fn_call(fn *ast.FuncStmt, caller *ast.CallFuncStmt) interface{} {
 	if fn == nil || caller == nil {
 		return nil
@@ -102,7 +92,7 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 	switch n.(type) {
 	case *ast.DeclareStmt:
 		w := n.(*ast.DeclareStmt)
-		fmt.Printf("%#v\n", w)
+		h.DebugLog.Printf("declare %#v\n", w)
 		if len(w.Children) == 2 {
 			h.SetVar(w.Children[0].GetLexeme().Value.(string), h.evalNode(w.Children[1]), true)
 		} else {
@@ -111,6 +101,7 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 
 	case *ast.Scalar:
 		w := n.(*ast.Scalar)
+		h.DebugLog.Printf("evalScalar %+v\n", w)
 		return cast_scalar_node_type(w)
 	case *ast.Variable:
 		return h.GetVar(n.GetLexeme().Value.(string))
@@ -122,12 +113,26 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 			}
 			h.evalNode(c)
 		}
+	case *ast.MapIndexNode:
+		m := n.(*ast.MapIndexNode)
+		arr := h.evalNode(m.GetChildren()[0])
+		key := h.evalNode(m.GetChildren()[1])
+		h.DebugLog.Printf("evalMapIndexNode %+v, %+v\n", arr, key)
+		if _, ok := arr.([]interface{}); ok {
+			return arr.([]interface{})[cast.ToInt(key)]
+		}
+		if mp, ok := arr.(map[string]interface{}); ok {
+			ret:= mp[cast.ToString(key)]
+			return ret
+		}
+		panic(fmt.Sprintf("illegal array %+v", arr))
 	case *ast.IfStmt:
+
 		stmt := n.(*ast.IfStmt)
 		cond := stmt.GetCondition()
 		body := stmt.GetBody()
 		elseNode := stmt.GetElseNode()
-
+		h.DebugLog.Printf("evalIfStmt %+v, %+v, %+v\n", cond, body, elseNode)
 		val := h.evalNode(cond)
 		ok := cast.ToBool(val)
 		if ok {
@@ -138,7 +143,8 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 	case *ast.Expr:
 		//left and right
 		pe := h.evalExpr(n)
-		if f,ok := pe.(bool);ok {
+		h.DebugLog.Printf("!astExpr: %+v, %+v\n", n, pe)
+		if f, ok := pe.(bool); ok {
 			h.setPrevEval(f)
 		}
 		return pe
@@ -146,7 +152,6 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 		var last interface{}
 		ln := len(n.GetChildren())
 		for i, v := range n.GetChildren() {
-
 			if i == ln-1 {
 				last = h.evalNode(v)
 			} else {
@@ -166,6 +171,10 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 			// lib call
 			return h.libFnCall(fnName, n.GetChildren())
 		}
+		res1, ok := h.CallInline(fnName, n.GetChildren())
+		if ok {
+			return res1
+		}
 		match := false
 		var res interface{}
 
@@ -184,7 +193,7 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 		}
 		if !match {
 			// fmt.Printf("cannot call fn\n")
-			panic("cannot call fn")
+			h.DebugLog.Panicf("cannot call fn "+fnName)
 		}
 		return res
 	case *ast.ReturnStmt:
@@ -228,6 +237,7 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 		}
 	case *ast.BreakFlagStmt:
 		h.SetVar(breakKey, 1, true)
+		h.DebugLog.Printf("evalBreakFlagStmt %+v\n", n)
 
 	default:
 
@@ -239,7 +249,7 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 func (h *CodeRunner) setPrevEval(b bool) {
 	if b {
 		h.PrevEval = 1
-	}else {
+	} else {
 		h.PrevEval = 0
 	}
 }
@@ -371,7 +381,7 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 			// a.compare b => -1 => a-b == -1  ==> a < b
 			res = strings.Compare(l.(string), fmt.Sprintf("%+v", r)) == 0
 
-		case float64,int64,uint64,uint32,int32,uint16,int16,uint8,int8:
+		case float64, int64, uint64, uint32, int32, uint16, int16, uint8, int8:
 			res = cast.ToFloat64(l) == cast.ToFloat64(r)
 		default:
 			res = cast.ToString(l) == cast.ToString(r)
@@ -434,16 +444,32 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 	return nil
 }
 
-func parse_source_tree(s string) ast.Anode {
+func parseSourceTree(s string) ast.Anode {
 	var lx = lexer.NewStringLexer(s)
 
 	tt := lx.ReadTokens()
+	// checkToken
+	CheckToken(tt)
 	b := ast.NewTokens(tt)
 	tree := ast.ParseStmt(b)
 	return tree
 
 }
+func CheckToken(tokens []*lexer.Token) bool {
+	var con uint8
+	for _, v := range tokens {
+		if v.Type == lexer.Variable {
+			con++
+		} else {
+			con = 0
+		}
+		if con >= 3 {
+			panicf("illegal token %+v", tokens)
+		}
+	}
+	return true
+}
 
 func ParseTree(s string) ast.Anode {
-	return parse_source_tree(s)
+	return parseSourceTree(s)
 }

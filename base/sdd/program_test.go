@@ -22,6 +22,24 @@ func Test_parse_cmd(t *testing.T) {
 	}
 }
 
+func Test_parse_contains(t *testing.T) {
+	var s = "contains(a,b)"
+
+	node := ParseNode(s)
+	t.Logf("%+v\n", ast.ShowTree(node))
+	d := Translate(node)
+	// t.Logf("%+v\n", d.String())
+	for _, v := range d.Cmd {
+		if v != nil {
+			t.Logf("%v\n", v)
+		}
+		// if i == 3 {
+		// 	t.Logf("last=%v %+v\n", v.Operator, v.Arg1)
+		// }
+	}
+}
+
+
 func Test_parse_cmd22(t *testing.T) {
 	var s = "var c=b*2+3*4 + a*b"
 
