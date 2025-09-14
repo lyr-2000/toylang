@@ -1,4 +1,4 @@
-module toylang
+module github.com/lyr-2000/toylang
 
 go 1.17
 
