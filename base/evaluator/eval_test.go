@@ -105,6 +105,26 @@ func Test_float(t *testing.T) {
 	runner.RunCode(node)
 }
 
+func Test_self_op_assign(t *testing.T) {
+	code := `
+	a = 1
+	a^=2
+	a&=1
+	a|=(1<< 5)
+	print(bin(a))
+	`
+	ast.RegisterOpSign(0, "^=")
+	ast.RegisterOpSign(0, "&=")
+	ast.RegisterOpSign(0, "|=")
+	node := ParseTree(code)
+	t.Logf("%+v\n", ast.ShowTree(node))
+	runner := NewCodeRunner()
+	runner.SetFunc("bin", func(params []interface{}) interface{} {
+		return strconv.FormatInt(cast.ToInt64(params[0]), 2)
+	})
+	runner.RunCode(node)
+}
+
 func Test_self_plus(t *testing.T) {
 	code := `
 	a = 1

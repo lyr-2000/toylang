@@ -60,41 +60,57 @@ func expr_parse_(t *Tokens) Node {
 }
 
 var (
-	tables = [][]string{
-		{
-			"=", "+=", "-=", "*=", "/=", "%=", "&=", "^=", "!=",
+	OpTables = [][]string{
+		0: {
+			"=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "!=",
 		},
-		{
+		1: {
 			"||",
 		},
-		{
+		2: {
 			"&&",
 		},
-		{
+		3: {
 			"|",
-		}, {
+		},
+		4: {
 			"^",
-		}, {
+		},
+		5: {
 			"&",
-		}, {
+		},
+		6: {
 			"==", "!=",
-		}, {
+		},
+		7: {
 			">=", "<=", ">", "<",
-		}, {
+		},
+		8: {
 			">>", "<<",
-		}, {
+		},
+		9: {
 			"+", "-",
-		}, {
+		},
+		10: {
 			"*", "/", "%",
 		},
 	}
 )
 
+func RegisterOpSign(priorityIndex int, sign string) {
+	for _, v := range OpTables[priorityIndex] {
+		if v == sign {
+			return
+		}
+	}
+	OpTables[priorityIndex] = append(OpTables[priorityIndex], sign)
+}
+
 //1.处理伪运算符，  -> , \\.  , [] 等 ，优先级最高
 //2. 处理单目运算符， ++ ,  次高
 
 func (e *Expr) parseE(t *Tokens, k int) Node {
-	if k >= len(tables) {
+	if k >= len(OpTables) {
 
 		return e.parseTop2(t)
 	}
@@ -113,7 +129,7 @@ func (e *Expr) parseE(t *Tokens, k int) Node {
 
 		}
 		match := false
-		for _, v := range tables[k] {
+		for _, v := range OpTables[k] {
 			if v == cur.Value {
 				//match it
 				t.i++
@@ -132,6 +148,18 @@ func (e *Expr) parseE(t *Tokens, k int) Node {
 
 	return a
 }
+func isMixToken(token *Token) bool {
+	sop := token.Value.(string)
+	if len(sop) == 2 && lexer.IsOperator(lexer.CharNum(sop[0])) && lexer.MixOpDefine != nil {
+		l, r := lexer.CharNum(sop[0]), lexer.CharNum(sop[1])
+		// d := lexer.MakeString(l, r)
+		if str := lexer.MixOpDefine(l, r); str != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func (e *Expr) parseTop1(t *Tokens) Node {
 	token := t.tokens[t.i]
 	if token.Value == "(" {
@@ -146,7 +174,7 @@ func (e *Expr) parseTop1(t *Tokens) Node {
 		}
 		t.i++
 		return child
-	} else if token.Value == "!" || token.Value == "-" || token.Value == "+" {
+	} else if token.Value == "!" || token.Value == "-" || token.Value == "+" || isMixToken(token) {
 		t.i++
 		child := e.parseE(t, 0)
 		if child == nil {
@@ -266,9 +294,6 @@ func (e *Expr) parseTop2(t *Tokens) Node {
 	}
 	return a
 }
-
-
-
 
 func newBinaryExpr(tk *Token) *Expr {
 	var ptr = new(Expr)

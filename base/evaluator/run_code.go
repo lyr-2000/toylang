@@ -53,19 +53,11 @@ func (r *CodeRunner) SetFunc(name string, fn func([]interface{}) interface{}) {
 }
 
 func init() {
-	var mp = map[string]struct{}{
-		"<<": {},
-		">>": {},
-		"%=": {},
-		"*=": {},
-		"/=": {},
-		"++": {},
-		"--": {},
-	}
 	lexer.MixOpDefine = func(l, r lexer.CharNum) string {
 		df := lexer.MakeString(l, r)
-		if _, ok := mp[df]; ok {
-			return string(l) + string(r)
+		_, ok := ExtraOp[df]
+		if ok {
+			return df
 		}
 		return ""
 	}
@@ -139,7 +131,47 @@ func init() {
 		}
 		return l
 	})
-
+	SetExtrapOp("~=", func(h *CodeRunner, node ast.Node) any {
+		l := h.EvalNode(node.GetChildren()[0])
+		r := h.EvalNode(node.GetChildren()[1])
+		return l != r
+	})
+	SetExtrapOp("^=", func(h *CodeRunner, node ast.Node) any {
+		l := h.EvalNode(node.GetChildren()[0])
+		r := h.EvalNode(node.GetChildren()[1])
+		l1 := cast.ToInt64(l)
+		r2 := cast.ToInt64(r)
+		l1 ^= r2
+		v := ast.AsVariable(node.GetChildren()[0])
+		if v != nil {
+			h.SetVar(v.GetVarName(), l1, true)
+		}
+		return l1
+	})
+	SetExtrapOp("&=", func(h *CodeRunner, node ast.Node) any {
+		l := h.EvalNode(node.GetChildren()[0])
+		r := h.EvalNode(node.GetChildren()[1])
+		l1 := cast.ToInt64(l)
+		r2 := cast.ToInt64(r)
+		l1 &= r2
+		v := ast.AsVariable(node.GetChildren()[0])
+		if v != nil {
+			h.SetVar(v.GetVarName(), l1, true)
+		}
+		return l1
+	})
+	SetExtrapOp("|=", func(h *CodeRunner, node ast.Node) any {
+		l := h.EvalNode(node.GetChildren()[0])
+		r := h.EvalNode(node.GetChildren()[1])
+		l1 := cast.ToInt64(l)
+		r2 := cast.ToInt64(r)
+		l1 |= r2
+		v := ast.AsVariable(node.GetChildren()[0])
+		if v != nil {
+			h.SetVar(v.GetVarName(), l1, true)
+		}
+		return l1
+	})
 }
 
 func setFunc(r *CodeRunner) {
