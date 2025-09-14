@@ -21,7 +21,7 @@ func (h *CodeRunner) evalBool(bh ast.Node) bool {
 	if bh == nil {
 		return false
 	}
-	
+
 	ret := h.evalNode(bh)
 	switch ret.(type) {
 	case float64:
@@ -33,6 +33,17 @@ func (h *CodeRunner) evalBool(bh ast.Node) bool {
 
 }
 
+type RefValue struct {
+	Value   interface{}
+	setFunc (func(interface{}))
+}
+
+func (r *RefValue) SetValue(value interface{}) {
+	r.Value = value
+	if r.setFunc != nil {
+		r.setFunc(value)
+	}
+}
 
 func (h *CodeRunner) fn_call(fn *ast.FuncStmt, caller *ast.CallFuncStmt) interface{} {
 	if fn == nil || caller == nil {
@@ -122,7 +133,7 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 			return arr.([]interface{})[cast.ToInt(key)]
 		}
 		if mp, ok := arr.(map[string]interface{}); ok {
-			ret:= mp[cast.ToString(key)]
+			ret := mp[cast.ToString(key)]
 			return ret
 		}
 		panic(fmt.Sprintf("illegal array %+v", arr))
@@ -193,7 +204,7 @@ func (h *CodeRunner) evalNode(n ast.Node) interface{} {
 		}
 		if !match {
 			// fmt.Printf("cannot call fn\n")
-			h.DebugLog.Panicf("cannot call fn "+fnName)
+			h.DebugLog.Panicf("cannot call fn " + fnName)
 		}
 		return res
 	case *ast.ReturnStmt:
@@ -265,7 +276,7 @@ func (h *CodeRunner) evalExpr(n ast.Node) interface{} {
 		return nil
 	}
 	if /* len(ch) == 1 || */ word == nil || word.Value == nil {
-		panic("not support" + fmt.Sprintf("vl=%+v", n))
+		h.DebugLog.Panicf("not support" + fmt.Sprintf("vl=%+v", n))
 	}
 	if len(ch) == 1 {
 		//处理一元运算符 ，i++

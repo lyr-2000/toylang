@@ -49,11 +49,13 @@ func NewTokenPos(t TokenType, v interface{}, _ scanner.Position) *Token {
 func makeToken(t TokenType, v interface{}) *Token {
 	return &Token{t, v}
 }
+
 func NewToken(t TokenType, v interface{}, _, _ int) *Token {
 	return &Token{t, v}
 }
+
 func (t *Token) String() string { // convert Token to string
-	return fmt.Sprintf("{type=%v,value=%v}", t.Type.String(), t.Value)
+	return fmt.Sprintf("{type:%v,value:%v}", t.Type.String(), t.Value)
 }
 
 //func (t *Token) IsType() {

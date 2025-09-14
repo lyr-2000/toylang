@@ -23,6 +23,31 @@ func Test_aaa(t *testing.T) {
 
 }
 
+func Test_assign(t *testing.T) {
+	code := `
+	a = map()
+	set(a,"key",1)
+	print(a)
+	set(A,"Value","2")
+	print(get(A,"Value"))
+	print(typeof(A))
+
+	`
+	node := ParseTree(code)
+	t.Logf("%+v\n", ast.ShowTree(node))
+	type StructValue struct {
+		Name string
+		Value string
+	}
+	var a = &StructValue{
+		Name: "hello",
+		Value: "world",
+	}
+	runner := NewCodeRunner()
+	runner.SetVar("A", a, true)
+	runner.RunCode(node)
+	t.Logf("refValue: %#v", a)
+}
 func Test_prevEval(t *testing.T) {
 	t.Run("test-Prev_eval1-0", func(t *testing.T) {
 		code := `
@@ -59,7 +84,7 @@ func Test_prevEval(t *testing.T) {
 		runner := NewCodeRunner()
 		runner.SetFunc("contains", func(params []interface{}) interface{} {
 			t.Logf("Contains Call! %+v\n", params)
-			return strings.Contains(cast.ToString(params[0]),cast.ToString(params[1]))
+			return strings.Contains(cast.ToString(params[0]), cast.ToString(params[1]))
 		})
 		t.Logf("%v\n", ast.ShowTree(node))
 
@@ -79,7 +104,7 @@ func Test_prevEval(t *testing.T) {
 		runner := NewCodeRunner()
 		runner.SetFunc("contains", func(params []interface{}) interface{} {
 			t.Logf("Contains Call! %+v\n", params)
-			return strings.Contains(cast.ToString(params[0]),cast.ToString(params[1]))
+			return strings.Contains(cast.ToString(params[0]), cast.ToString(params[1]))
 		})
 
 		runner.SetVar("A", 100, true)
