@@ -17,6 +17,38 @@ const (
 func panicf(s string, o ...interface{}) {
 	panic(fmt.Sprintf(s, o...))
 }
+
+type arrayVal struct {
+	Value []interface{}
+}
+
+func (r *arrayVal) Min() interface{} {
+	if len(r.Value) == 0 {
+		panic("array is empty")
+	}
+	var f = cast.ToFloat64(r.Value[0])
+	for _, v := range r.Value {
+		d := cast.ToFloat64(v)
+		if d < f {
+			f = d
+		}
+	}
+	return f
+}
+func (r *arrayVal) Max() interface{} {
+	if len(r.Value) == 0 {
+		panic("array is empty")
+	}
+	var f = cast.ToFloat64(r.Value[0])
+	for _, v := range r.Value {
+		d := cast.ToFloat64(v)
+		if d > f {
+			f = d
+		}
+	}
+	return f
+}
+
 func (h *CodeRunner) evalBool(bh ast.Node) bool {
 	if bh == nil {
 		return false

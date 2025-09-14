@@ -40,8 +40,8 @@ func (r *CodeRunner) SetOutput(w io.Writer) {
 	}
 }
 
-func (r *CodeRunner) Alias(from,to string) {
-	r.Inlines[to] = r.Inlines[from] 
+func (r *CodeRunner) Alias(from, to string) {
+	r.Inlines[to] = r.Inlines[from]
 }
 func (r *CodeRunner) SetFunc(name string, fn func([]interface{}) interface{}) {
 	if r.Inlines == nil {
@@ -49,21 +49,17 @@ func (r *CodeRunner) SetFunc(name string, fn func([]interface{}) interface{}) {
 	}
 	r.Inlines[name] = fn
 }
-
-func NewCodeRunner() *CodeRunner {
-	var r = new(CodeRunner)
-	r.Vars = make(map[string]interface{}, 0)
-	r.Stack = list.NewStack()
+func setFunc(r *CodeRunner) {
 	r.SetFunc("int64", func(params []interface{}) interface{} {
 		p := params[0]
 		return cast.ToInt64(p)
 	})
-	r.Alias("int64","int")
+	r.Alias("int64", "int")
 	r.SetFunc("float64", func(params []interface{}) interface{} {
 		p := params[0]
 		switch val := p.(type) {
 		case string:
-			if strings.Contains(val,"e") || strings.Contains(val,"E") {
+			if strings.Contains(val, "e") || strings.Contains(val, "E") {
 				bg := big.NewFloat(0)
 				bg.SetString(val)
 				w, _ := bg.Float64()
@@ -73,7 +69,7 @@ func NewCodeRunner() *CodeRunner {
 		}
 		return cast.ToFloat64(p)
 	})
-	r.Alias("float64","float")
+	r.Alias("float64", "float")
 	r.SetFunc("typeof", func(params []interface{}) interface{} {
 		return reflect.TypeOf(params[0]).String()
 	})
@@ -177,6 +173,22 @@ func NewCodeRunner() *CodeRunner {
 	r.SetFunc("trim", func(params []interface{}) interface{} {
 		return strings.Trim(params[0].(string), params[1].(string))
 	})
+	r.SetFunc("min", func(params []interface{}) interface{} {
+		d := (arrayVal{Value: params})
+		return d.Min()
+	})
+	r.SetFunc("max", func(params []interface{}) interface{} {
+		d := arrayVal{Value: params}
+		return d.Max()
+	})
+
+
+}
+func NewCodeRunner() *CodeRunner {
+	var r = new(CodeRunner)
+	r.Vars = make(map[string]interface{}, 0)
+	r.Stack = list.NewStack()
+	setFunc(r)
 	r.DebugLog = log.New(io.Discard, "[Evaluator]", log.LstdFlags)
 	r.SetOutput(os.Stdout)
 	return r

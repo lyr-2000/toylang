@@ -36,6 +36,10 @@ func Test_float(t *testing.T) {
 	code := `
 	a = float64("1e3")+1
 	print(int64(a))
+	b=a
+	print(a,b,c,d,e)
+	print(max(3,2,1))
+	print(min(3,2,1))
 	`
 	node := ParseTree(code)
 	t.Logf("%+v\n", ast.ShowTree(node))
