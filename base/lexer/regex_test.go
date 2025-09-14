@@ -63,14 +63,20 @@ func Test_token_readString_(t *testing.T) {
 
 //. "github.com/smartystreets/goconvey/convey"
 func Test_lexer_readnumber(t *testing.T) {
+	Convey("case read big float", t, func() {
+		lexer := New(bytes.NewBufferString("1e9+7"))
+		p := lexer.readNumberTok().Value
+		So(p, ShouldEqual, "1e9+7")
+		t.Logf("p: %v", p)
+	})
 	Convey("case space right", t, func() {
 		lexer := New(bytes.NewBufferString("1.11112     "))
-		So(lexer.readNumber_().Value, ShouldEqual, "1.11112")
+		So(lexer.readNumberTok().Value, ShouldEqual, "1.11112")
 	})
 	Convey("case space left", t, func() {
 		lexer := New(bytes.NewBufferString(" 1.11112     "))
 		lexer.Next()
-		So(lexer.readNumber_().Value, ShouldEqual, "1.11112")
+		So(lexer.readNumberTok().Value, ShouldEqual, "1.11112")
 	})
 	//TODO: 这个地方 还要完善，目前不支持
 	// return

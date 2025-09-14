@@ -172,7 +172,7 @@ func (l *LexerWithCache) ReadTokens() []*Token {
 			//read char
 			result = append(result, l.readChar_())
 		} else if IsNumber(c) {
-			result = append(result, l.readNumber_())
+			result = append(result, l.readNumberTok())
 		}
 
 		c = l.Peek()

@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -16,11 +18,29 @@ import (
 )
 
 func Test_aaa(t *testing.T) {
+	h := big.NewFloat(0)
+	h.SetString("1e9+7")
+	w,_ := h.Float64()
+	t.Log("bigFloat",w)
+	f, _ := strconv.ParseFloat("1e9+7", 64)
+	t.Log("castFloat2",f)
+	t.Log("float:",cast.ToFloat64("1e9+7"))
 	var b float64 = 1.3
 	fmt.Printf("%+v\n", cast.ToInt64(b)&1)
 	var a int = 1
 	fmt.Printf("%+v\n", a&1)
 
+}
+
+func Test_float(t *testing.T) {
+	code := `
+	a = float64("1e3")+1
+	print(int64(a))
+	`
+	node := ParseTree(code)
+	t.Logf("%+v\n", ast.ShowTree(node))
+	runner := NewCodeRunner()
+	runner.RunCode(node)
 }
 
 func Test_assign(t *testing.T) {
@@ -31,6 +51,8 @@ func Test_assign(t *testing.T) {
 	set(A,"Value","2")
 	print(get(A,"Value"))
 	print(typeof(A))
+	print(1e9+7)
+	print(1.8880)
 
 	`
 	node := ParseTree(code)

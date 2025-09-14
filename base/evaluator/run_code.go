@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"os"
 	"reflect"
 	"slices"
@@ -39,6 +40,9 @@ func (r *CodeRunner) SetOutput(w io.Writer) {
 	}
 }
 
+func (r *CodeRunner) Alias(from,to string) {
+	r.Inlines[to] = r.Inlines[from] 
+}
 func (r *CodeRunner) SetFunc(name string, fn func([]interface{}) interface{}) {
 	if r.Inlines == nil {
 		r.Inlines = make(map[string]func([]interface{}) interface{})
@@ -50,6 +54,26 @@ func NewCodeRunner() *CodeRunner {
 	var r = new(CodeRunner)
 	r.Vars = make(map[string]interface{}, 0)
 	r.Stack = list.NewStack()
+	r.SetFunc("int64", func(params []interface{}) interface{} {
+		p := params[0]
+		return cast.ToInt64(p)
+	})
+	r.Alias("int64","int")
+	r.SetFunc("float64", func(params []interface{}) interface{} {
+		p := params[0]
+		switch val := p.(type) {
+		case string:
+			if strings.Contains(val,"e") || strings.Contains(val,"E") {
+				bg := big.NewFloat(0)
+				bg.SetString(val)
+				w, _ := bg.Float64()
+				return w
+			}
+			return cast.ToFloat64(val)
+		}
+		return cast.ToFloat64(p)
+	})
+	r.Alias("float64","float")
 	r.SetFunc("typeof", func(params []interface{}) interface{} {
 		return reflect.TypeOf(params[0]).String()
 	})

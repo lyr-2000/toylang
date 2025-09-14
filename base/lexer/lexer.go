@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-// BaseLexer type BaseLexer struct {
-//	*scanner.Scanner
-//}
+//	BaseLexer type BaseLexer struct {
+//		*scanner.Scanner
+//	}
 type BaseLexer = LexerWithCache
 type Lexer = BaseLexer
 
@@ -69,8 +69,8 @@ FindSpace:
 // 			break
 // 		}
 
-// 	}
-// }
+//		}
+//	}
 func isSingleQuote(ch char) bool {
 	return ch == '\''
 }
@@ -100,7 +100,21 @@ func (l *BaseLexer) readChar_() *Token {
 
 }
 
-func (l *BaseLexer) readNumber_() *Token {
+// func (l *BaseLexer) readBigFloat() *Token {
+// 	for {
+// 		ch := l.Peek()
+// 	}
+// 	// example: 1e9+7
+// 	// 1e9
+// 	// 1e+9
+// 	// 1e-9
+// 	// 1e9+7
+// 	// 1e9-7
+// 	// 1e9*7
+// 	return nil
+// }
+
+func (l *BaseLexer) readNumberTok() *Token {
 	ch := l.Next()
 	switch {
 	case ch == '0':
@@ -118,6 +132,10 @@ func (l *BaseLexer) readNumber_() *Token {
 		for {
 			peekchar := l.Peek()
 			switch {
+			case 'e' == peekchar || 'E' == peekchar:
+				l.Next()
+				buf.WriteRune(ch)
+				continue Label
 			case IsNumber(peekchar):
 				l.Next() //for->next
 				buf.WriteRune(peekchar)
@@ -134,6 +152,8 @@ func (l *BaseLexer) readNumber_() *Token {
 		var buf bytes.Buffer
 		buf.WriteRune(ch)
 		hasDot := false
+		eNumber := false
+		specialOpChar := 0
 	readNumber:
 		for {
 			fc := l.Peek()
@@ -146,6 +166,18 @@ func (l *BaseLexer) readNumber_() *Token {
 			}
 			if IsNumber(fc) {
 				l.Next()
+				buf.WriteRune(fc)
+				continue readNumber
+			}
+			if fc == 'e' || fc == 'E' {
+				eNumber = true
+				l.Next()
+				buf.WriteRune(fc)
+				continue readNumber
+			}
+			if eNumber && specialOpChar == 0 && fc == '+' || fc == '-' {
+				l.Next()
+				specialOpChar++
 				buf.WriteRune(fc)
 				continue readNumber
 			}
