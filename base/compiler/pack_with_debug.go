@@ -25,5 +25,5 @@ func UnPackWithDebug(src string, tree ast.Anode, buf Writer) {
 		buf.WriteString("</rawcode>")
 	}
 	buf.WriteString("\n")
-	Unpack(tree, buf)
+	GenerateIntermediateCode(tree, buf)
 }

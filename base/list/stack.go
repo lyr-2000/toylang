@@ -12,6 +12,10 @@ func StackPush(s *Stack, v interface{}) {
 	QueuePrepend(s.Queue, v)
 
 }
+
+func (s *Stack) Top() interface{} {
+	return QueuePeek(s.Queue)
+}
 func (s *Stack) Len() int {
 	return s.StackSize()
 }

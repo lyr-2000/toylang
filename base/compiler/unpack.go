@@ -6,7 +6,7 @@ import (
 	"github.com/lyr-2000/toylang/base/ast"
 )
 
-func Unpack(p ast.Anode, writer io.Writer) {
+func GenerateIntermediateCode(p ast.Anode, writer io.Writer) {
 	p.Output(&ast.Writer{Writer: writer})
 }
 

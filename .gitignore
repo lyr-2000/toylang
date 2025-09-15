@@ -1,1 +1,4 @@
 *.txt
+*__debug.bin
+*.bin
+*.exe
