@@ -1,8 +1,10 @@
 package lexer
 
 import (
+	"encoding/base64"
 	"fmt"
 	"text/scanner"
+	"unicode"
 )
 
 /*
@@ -32,6 +34,7 @@ const (
 
 	Illegal //illegal state
 )
+
 func (t TokenType) String() string {
 	switch t {
 	case Keyword:
@@ -68,6 +71,44 @@ type Token struct {
 	Value TokenValue
 	//Line     int, 不需要 line 和 col ,浪费内存
 	//Position int
+}
+
+func (r *Token) VarName() string {
+	if r == nil {
+		return "@error!nil"
+	}
+	if r.Type == Variable {
+		return r.Value.(string)
+	}
+	return "@error!"
+}
+func (r *Token) ToString() string {
+	if r == nil {
+		return "@eof"
+	}
+	if r.Type == String {
+		if onlyLetter(r.Value.(string)) {
+			return fmt.Sprintf("%v %v", r.Type.String(), r.Value)
+		}
+		buf := base64.StdEncoding.EncodeToString([]byte(r.Value.(string)))
+		return fmt.Sprintf("%v %v", "strb64", buf)
+	}
+	return fmt.Sprintf("%v %v", r.Type.String(), r.Value)
+}
+
+func onlyLetter(s string) bool {
+	for _, v := range s {
+		if unicode.IsSpace(v) {
+			return false
+		}
+		if unicode.IsNumber(v) {
+			continue
+		}
+		if !unicode.IsLetter(v) {
+			return false
+		}
+	}
+	return true
 }
 
 func NewTokenPos(t TokenType, v interface{}, _ scanner.Position) *Token {

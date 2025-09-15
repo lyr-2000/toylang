@@ -1,4 +1,4 @@
-package sdd
+package compiler
 
 import (
 	"io"
@@ -7,7 +7,7 @@ import (
 )
 
 func Unpack(p ast.Anode, writer io.Writer) {
-	p.Output(writer)
+	p.Output(&ast.Writer{Writer: writer})
 }
 
 func todo() {
