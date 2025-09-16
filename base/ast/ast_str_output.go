@@ -144,7 +144,7 @@ func (f *BreakFlagStmt) Output(w *Writer) {
 	if f == nil {
 		return
 	}
-	writeln(w, []string{"breakRange"})
+	writeln(w, []string{"ExitFor","$?"})
 }
 
 func (f *DeclareStmt) Output(w *Writer) {
@@ -163,37 +163,40 @@ func (f *ForStmt) Output(w *Writer) {
 	if f == nil {
 		return
 	}
-	x := w.Ln()
+	entryLabel := w.Ln()
 	cnt  := len(f.Children)-1
-	writeln(w, []string{"forStmtBegin", x, cast.ToString(cnt)})
-	defer writeln(w, []string{"forStmtEnd", x})
+	writeln(w, []string{"forStmtBegin", entryLabel, cast.ToString(cnt)})
+	defer writeln(w, []string{"forStmtEnd", entryLabel})
 	if len(f.Children) == 4 {
+
 		first := f.Children[0].(*ExprGroups)
 		continueExpr := f.Children[1].(*ExprGroups)
 		stepExpr := f.Children[2].(*ExprGroups)
 		bodyExpr := f.Children[3].(*BlockNode)
-		writeln(w, []string{"for_init"})
+		writeln(w, []string{"for_init",entryLabel})
 		first.Output(w)
-		writeln(w, []string{"for_init_end"})
-		writeln(w, []string{"for_continue"})
+		writeln(w, []string{"for_init_end",entryLabel})
+		writeln(w, []string{"for_continue",entryLabel})
 		continueExpr.Output(w)
-		writeln(w, []string{"for_continue_end"})
-		writeln(w, []string{"for_step"})
+		writeln(w, []string{"for_continue_end",entryLabel,"ExitFor"})
+		writeln(w, []string{"for_step",entryLabel})
 		stepExpr.Output(w)
-		writeln(w, []string{"for_step_end"})
-		writeln(w, []string{"for_body"})
+		writeln(w, []string{"for_step_end",entryLabel})
+		writeln(w, []string{"for_body",entryLabel})
 		bodyExpr.Output(w)
-		writeln(w, []string{"for_body_end"})
+		writeln(w, []string{"for_body_end",entryLabel})
+		writeln(w, []string{"GOTO","for_continue",entryLabel})
+		writeln(w, []string{"ExitFor",entryLabel})
 	} else if len(f.Children) >= 1 {
 		ln := 0
 		if len(f.Children) == 1 {
 			ln = 0
-			writeln(w, []string{"@deadloop"})
+			writeln(w, []string{"@deadloop",entryLabel})
 		} else {
 			ln = 1
-			writeln(w, []string{"for_continue"})
+			writeln(w, []string{"for_continue",entryLabel})
 			f.Children[0].Output(w)
-			writeln(w, []string{"for_continue_end"})
+			writeln(w, []string{"for_continue_end",entryLabel,"ExitFor"})
 		}
 		for _, v := range f.Children[ln:] {
 			if v == nil {
@@ -202,8 +205,10 @@ func (f *ForStmt) Output(w *Writer) {
 			v.Output(w)
 		}
 		if ln == 0 {
-			writeln(w, []string{"@deadloop_end"})
+			writeln(w, []string{"@deadloop_end",entryLabel})
 		}
+		writeln(w, []string{"GOTO","for_continue",entryLabel})
+		writeln(w, []string{"ExitFor",entryLabel})
 	}
 }
 
@@ -236,21 +241,24 @@ func (f *IfStmt) Output(w *Writer) {
 	if f == nil {
 		return
 	}
-	wx := w.Ln()
-	writeln(w, []string{"#IF", wx})
-	defer writeln(w, []string{"#ENDIF", wx})
+	entryLabel := w.Ln()
+	writeln(w, []string{"#IF", entryLabel})
+	defer writeln(w, []string{"#ENDIF", entryLabel})
 	bodyln := w.Ln()
 	w.AddI(1)
 	defer w.AddI(-1)
 	writeln(w, []string{"if", bodyln})
-	cond, ok := f.Children[0].(*Expr)
-	if !ok {
-		writeln(w, []string{"@fatal", "if stmtcond syntax"})
-		return
-	}
+	cond := f.Children[0]
+	// variable or expr 
+	// todo: check cond or fatal
 
 	cond.Output(w)
-	writeln(w, []string{"endif", bodyln})
+	skipCommand := []string{"endif",bodyln}
+	if len(f.Children) > 2 {
+		// has else condition
+		skipCommand = append(skipCommand, []string{"ELSEIF", entryLabel}...)
+	}
+	writeln(w, skipCommand)
 	writeln(w, []string{"ifbodystart", bodyln})
 	body, ok := f.Children[1].(*BlockNode)
 	if !ok {
@@ -259,15 +267,17 @@ func (f *IfStmt) Output(w *Writer) {
 	}
 	body.Output(w)
 	writeln(w, []string{"ifbodyend", bodyln})
+	writeln(w,[]string{"GOTO","#ENDIF",entryLabel})
 	if len(f.Children) > 2 {
-		writeln(w, []string{"#ELSEIF", wx})
+		writeln(w, []string{"#ELSEIF", entryLabel})
 		for _, v := range f.Children[2:] {
 			if v == nil {
 				continue
 			}
 			v.Output(w)
+			writeln(w, []string{"GOTO", "#ENDIF", entryLabel})
 		}
-		writeln(w, []string{"#ENDELSEIF", wx})
+		// writeln(w, []string{"#ENDELSEIF", entryLabel})
 	}
 
 }

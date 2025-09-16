@@ -510,6 +510,10 @@ func SetExtrapOp(op string, fn func(h *CodeRunner, node ast.Node) any) {
 	ExtraOp[op] = fn
 }
 
+func ParseSourceTree(s string) ast.Anode {
+	return parseSourceTree(s)
+}
+
 func parseSourceTree(s string) ast.Anode {
 	var lx = lexer.NewStringLexer(s)
 
