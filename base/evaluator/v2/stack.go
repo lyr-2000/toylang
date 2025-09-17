@@ -7,10 +7,10 @@ import (
 )
 
 type LabelStack struct {
-	Label  string
+	Label      string
 	ParamsName []string
-	Params []any
-	top    int
+	Params     []any
+	top        int
 }
 
 func ParamsString(params ...any) string {
@@ -27,8 +27,8 @@ func ParamsString(params ...any) string {
 }
 
 type UnionStack struct {
-	Stack []*LabelStack
-	top   int
+	Stack    []*LabelStack
+	top      int
 	AssignId uint64
 }
 
@@ -60,40 +60,39 @@ func (r *UnionStack) VarByName(name string) any {
 	return nil
 }
 
-func (r *UnionStack) PushWithName(label string, params []any,names []string) {
+func (r *UnionStack) PushWithName(label string, params []any, names []string) {
 	if len(params) != len(names) {
 		log.Panicf("params and names length mismatch")
 	}
 	if r.top+1 >= len(r.Stack) {
 		r.Stack = append(r.Stack, &LabelStack{
-			Label:  label,
-			Params: params,
+			Label:      label,
+			Params:     params,
 			ParamsName: names,
-			top:    len(params) - 1,
+			top:        len(params) - 1,
 		})
 		r.top++
 		return
 	}
 	r.Stack[r.top+1] = &LabelStack{
-		Label:  label,
-		Params: params,
+		Label:      label,
+		Params:     params,
 		ParamsName: names,
-		top:    len(params) - 1,
+		top:        len(params) - 1,
 	}
 	r.top++
 }
 
-
 func (r *UnionStack) Push(label string, params []any) {
-	r.Stack = append(r.Stack, &LabelStack{
-		Label:  label,
-		Params: params,
-		ParamsName: make([]string, len(params)),
-		top:    len(params) - 1,
-	})
+	r.PushWithName(label, params, make([]string, len(params)))
 }
 
 func (r *UnionStack) Pop() *LabelStack {
+	if r.top < 0 || r.top >= len(r.Stack) {
+		log.Panicf("stack pop error")
+		return nil
+	}
+
 	d := r.Stack[r.top]
 	r.top--
 	return d
@@ -123,11 +122,13 @@ func (r *LabelStack) Pop() any {
 	return d
 }
 
-func (r *LabelStack) Push(name string,v any) {
+func (r *LabelStack) Push(name string, v any) {
 	if r.top+1 >= len(r.Params) {
 		r.Params = append(r.Params, v)
 		r.ParamsName = append(r.ParamsName, name)
 	}
+	//Final PushTOP
+
 	r.Params[r.top+1] = v
 	r.ParamsName[r.top+1] = name
 	r.top++

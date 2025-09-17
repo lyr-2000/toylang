@@ -68,6 +68,30 @@ type BreakFlagStmt struct {
 	BaseNode
 }
 
+type KeywordStmt struct {
+	Lexeme *Token
+}
+
+// GetChildren implements Anode.
+func (c *KeywordStmt) GetChildren() []Anode {
+	return nil
+}
+
+// GetLexeme implements Anode.
+func (c *KeywordStmt) GetLexeme() *Token {
+	return c.Lexeme
+}
+
+
+// SetLexeme implements Anode.
+func (c *KeywordStmt) SetLexeme(t *Token) {
+	c.Lexeme = t
+}
+
+var (
+	b Anode = &KeywordStmt{}
+)
+
 // func (b *MapIndexNode) GetChildren() []Anode {
 // 	//a[1] ,是一个变量，不是运算符，不可能有子节点
 // 	return []Anode{}

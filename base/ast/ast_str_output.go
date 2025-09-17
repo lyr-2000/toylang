@@ -18,6 +18,7 @@ type Writer struct {
 	io.Writer
 	no     uint64
 	indent uint16
+	CtxForLabel string
 }
 
 func (r *Writer) Indent() string {
@@ -144,7 +145,7 @@ func (f *BreakFlagStmt) Output(w *Writer) {
 	if f == nil {
 		return
 	}
-	writeln(w, []string{"ExitFor","$?"})
+	writeln(w, []string{"ExitFor",w.CtxForLabel})
 }
 
 func (f *DeclareStmt) Output(w *Writer) {
@@ -167,6 +168,11 @@ func (f *ForStmt) Output(w *Writer) {
 	cnt  := len(f.Children)-1
 	writeln(w, []string{"forStmtBegin", entryLabel, cast.ToString(cnt)})
 	defer writeln(w, []string{"forStmtEnd", entryLabel})
+	backUp := w.CtxForLabel  
+	defer func() {
+		w.CtxForLabel = backUp
+	}()
+	w.CtxForLabel = entryLabel
 	if len(f.Children) == 4 {
 
 		first := f.Children[0].(*ExprGroups)
@@ -247,13 +253,13 @@ func (f *IfStmt) Output(w *Writer) {
 	bodyln := w.Ln()
 	w.AddI(1)
 	defer w.AddI(-1)
-	writeln(w, []string{"if", bodyln})
+	writeln(w, []string{"if", entryLabel})
 	cond := f.Children[0]
 	// variable or expr 
 	// todo: check cond or fatal
 
 	cond.Output(w)
-	skipCommand := []string{"endif",bodyln}
+	skipCommand := []string{"endif",entryLabel}
 	if len(f.Children) > 2 {
 		// has else condition
 		skipCommand = append(skipCommand, []string{"ELSEIF", entryLabel}...)
@@ -308,14 +314,15 @@ func (f *BlockNode) Output(w *Writer) {
 
 func (f *CallFuncStmt) Output(w *Writer) {
 	e := w.Ln()
-	writeln(w, []string{"call_arg", e, f.GetLexeme().Value.(string), cast.ToString(len(f.Children[1:]))})
+	paramCnt := len(f.Children[1:])
+	writeln(w, []string{"call_arg", e, f.GetLexeme().Value.(string), cast.ToString(paramCnt)})
 	for _, v := range f.Children[1:] {
 		if v == nil {
 			continue
 		}
 		v.Output(w)
 	}
-	writeln(w, []string{"call", e, f.GetLexeme().Value.(string)})
+	writeln(w, []string{"call", e, f.GetLexeme().Value.(string),cast.ToString(paramCnt)})
 }
 
 // TODO:
@@ -337,4 +344,10 @@ func (f *ExprGroups) Output(w *Writer) {
 	for _, v := range f.Children {
 		v.Output(w)
 	}
+}
+
+
+// Output implements Anode.
+func (c *KeywordStmt) Output(w *Writer) {
+	writeln(w, []string{c.GetLexeme().Value.(string),w.CtxForLabel})
 }

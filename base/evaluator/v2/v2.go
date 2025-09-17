@@ -3,6 +3,7 @@ package evaluator
 import (
 	"bufio"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -19,6 +20,7 @@ type Interpreter struct {
 	CodeReader io.Reader
 	globalVar  map[string]any
 	UnionStack *UnionStack
+	Labels     map[string]int
 
 	handler0 map[string]Handler0
 	handler1 map[string]Handler1
@@ -35,6 +37,33 @@ type Interpreter struct {
 func (r *Interpreter) Top() *RefValue {
 	return r.UnionStack.Top().Top().(*RefValue)
 }
+
+func (r *RefValue) CompareTo(w *RefValue) int {
+	switch w.Type {
+	case "NUMBER":
+		if r.F() < w.F() {
+			return -1
+		}
+		if r.F() > w.F() {
+			return 1
+		}
+		return 0
+	}
+	if r.Any() == nil {
+		if w.Any() == nil {
+			return 0
+		}
+		return -1
+	}
+	if r.Any() == nil {
+		if w.Any() == nil {
+			return 0
+		}
+		return -1
+	}
+	return 0
+}
+
 func (r *Interpreter) Pop() *RefValue {
 	defer func() {
 		if err := recover(); err != nil {
@@ -43,7 +72,14 @@ func (r *Interpreter) Pop() *RefValue {
 			panic(err)
 		}
 	}()
-	return r.UnionStack.Top().Pop().(*RefValue)
+	b := r.UnionStack.Top()
+	if b == nil {
+		return nil
+	}
+	if b.Top() == nil {
+		return nil
+	}
+	return b.Pop().(*RefValue)
 }
 func (r *Interpreter) Push(v *RefValue) {
 	v.Interpreter = r
@@ -102,22 +138,30 @@ func (r *Interpreter) do(allf []string) {
 		r.stopDo = true
 		log.Panicf("invalid args :%s ", name)
 	}
+	var (
+		out any
+		err error
+	)
 	switch h := h.(type) {
 	case Handler0:
 		h()
 	case Handler1:
-		h(name)
+		out, err = h(name)
 	case Handler2:
-		h(name, args[0])
+		out, err = h(name, args[0])
 	case Handler3:
-		h(name, args[0], args[1])
+		out, err = h(name, args[0], args[1])
 	case Handler4:
-		h(name, args[0], args[1], args[2])
+		out, err = h(name, args[0], args[1], args[2])
 	case Nop:
 		h()
 	default:
 		log.Panicf("invalid handler %s ", name)
 	}
+	if err != nil {
+		log.Panicf("error: %d %v %v ", r.ProgramIndex, err, out)
+	}
+
 }
 func (r *Interpreter) Next() {
 	r.ProgramIndex++
@@ -184,6 +228,7 @@ type RefValue struct {
 	setter      func(b *Interpreter, v any)
 	Symbol      string
 	Type        string
+	Value       any
 }
 
 func (r *RefValue) String() string {
@@ -191,18 +236,32 @@ func (r *RefValue) String() string {
 }
 
 func NewVar(symbol string) *RefValue {
-	return &RefValue{
+	d := &RefValue{
 		getter: func(b *Interpreter) any {
 			return b.globalVar[symbol]
-		},
-		setter: func(b *Interpreter, v any) {
-			b.globalVar[symbol] = v
 		},
 		Symbol: symbol,
 		Type:   "VAR",
 	}
+	d.setter = func(b *Interpreter, v any) {
+		b.globalVar[symbol] = v
+		d.Value = v
+	}
+	return d
 }
 
+func NewBool(num bool) *RefValue {
+	return &RefValue{
+		getter: func(b *Interpreter) any {
+			return num
+		},
+		setter: func(b *Interpreter, v any) {
+			num = cast.ToBool(v)
+		},
+		Symbol: fmt.Sprintf("%v", num),
+		Type:   "BOOL",
+	}
+}
 func NewNumber(num float64) *RefValue {
 	return &RefValue{
 		getter: func(b *Interpreter) any {
@@ -241,9 +300,25 @@ func (r *RefValue) SysName() string {
 	}
 	return ""
 }
-
+func (r *RefValue) Bool() bool {
+	w := r.Any()
+	switch e := w.(type) {
+	case bool:
+		return e
+	case float64:
+		return e != 0
+	case int, int64, int32, int16, int8:
+		return e != 0
+	case string:
+		return e != ""
+	case nil:
+		return false
+	}
+	return false
+}
 func (r *RefValue) Any() any {
-	return r.getter(r.Interpreter)
+	e := r.getter(r.Interpreter)
+	return e
 }
 func (r *RefValue) F() float64 {
 	return cast.ToFloat64(r.getter(r.Interpreter))
@@ -265,7 +340,7 @@ type Nop = func()
 func New() *Interpreter {
 	sb := &UnionStack{
 		Stack:    make([]*LabelStack, 0),
-		top:      0,
+		top:      -1,
 		AssignId: 0,
 	}
 	sb.Push("GLOBAL", []any{})
@@ -279,10 +354,27 @@ func New() *Interpreter {
 		// stack:     list.NewStack(),
 		globalVar:  make(map[string]any),
 		UnionStack: sb,
+		Labels:     make(map[string]int),
 	}
 	globalSet(b)
 	return b
 }
+
+func (r *Interpreter) LookupVar(name string) *RefValue {
+	for i := r.UnionStack.top; i >= 0; i-- {
+		stack := r.UnionStack.Stack[i]
+		for j := stack.Index(); j >= 0; j-- {
+			if stack.ParamsName[j] == "VAR" {
+				el := stack.Params[j].(*RefValue)
+				if el.Symbol == name {
+					return stack.Params[j].(*RefValue)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (r *Interpreter) GetGlobalVar(name string) any {
 	return r.globalVar[name]
 }
@@ -291,14 +383,102 @@ func (r *Interpreter) SetGlobalVar(name string, v any) {
 	r.globalVar[name] = v
 }
 
+// TODO: check fast
+func (f *Interpreter) GOTO(index int, prefix, arg string) {
+	for i := index; i < len(f.Program); i++ {
+		line := f.Program[i]
+		if len(line) == 0 {
+			continue
+		}
+		if strings.EqualFold(line[0], prefix) {
+			if len(line) > 1 {
+				if line[1] == arg {
+					log.Printf("goto %s %s", prefix, arg)
+					f.ProgramIndex = i - 1
+					return
+				}
+			}
+		}
+	}
+	log.Panicf("!cmd error: goto %s %s not found", prefix, arg)
+}
+
 func globalSet(f *Interpreter) {
-	if len(f.handler0) > 0 {
+	if len(f.Nop) > 0 || len(f.handler2) > 0 {
 		return
 	}
 	f.Set("VAR", func(op string, arg string) (any, error) {
 		f.Push(NewVar(arg))
 		return arg, nil
 	})
+	f.Set("forStmtBegin", func(_, label string, nodeCount string) (any, error) {
+		f.Labels[label] = f.Index()
+		return nil, nil
+	})
+	f.Set("forStmtEnd", func(_, label string) (any, error) {
+		delete(f.Labels, label)
+		return nil, nil
+	})
+	f.Set("ExitFor", func(_, label string) (any, error) {
+		f.GOTO(f.Labels[label], "forStmtEnd", label)
+		return nil, nil
+	})
+	// continue keyword
+	f.Set("continue", func(_, label string) (any, error) {
+		f.GOTO(f.Labels[label], "for_continue", label)
+		return nil, nil
+	})
+	// is condition stmt
+	f.Set("for_continue", func(_, label string) (any, error) {
+		return nil, nil
+	})
+	f.Set("for_continue_end", func(_, label string, _ string) (any, error) {
+		d := f.Pop()
+		if !d.Bool() {
+			f.GOTO(f.Index(), "ExitFor", label)
+			return false, nil
+		}
+		return "", nil
+	})
+	f.Set("for_body", func(_, op string) (any, error) {
+		return nil, nil
+	})
+	f.Set("for_body_end", func(_, op string) (any, error) {
+		return nil, nil
+	})
+
+	// GOTO #ENDIF L6
+	f.Set("GOTO", func(op, syslabel, label2 string) (any, error) {
+		f.GOTO(f.Index(), syslabel, label2)
+		return nil, nil
+	})
+	f.Set("if", func() {})
+	f.Set("#IF", func() {})
+	f.Set("#ENDIF", func() {})
+
+	f.Set("endif", func(op, label string) (any, error) {
+		b := f.Pop().Bool()
+		if !b {
+			f.GOTO(f.Index(), "#ENDIF", label)
+			return nil, nil
+		}
+		return nil, nil
+	})
+	f.Set("endif", func(op, label, cond, label2 string) (any, error) {
+		b := f.Pop().Bool()
+		if b {
+			return nil, nil
+		}
+		f.GOTO(f.Index(), "#ELSEIF", label2)
+		return nil, nil
+	})
+	f.Set("#ELSEIF", func() {})
+	f.Set("ifbodystart", func(op, label string) (any, error) {
+
+		return nil, nil
+	})
+	f.Set("ifbodyend", func() {})
+
 	f.Set("blockstart", func() {})
 	f.Set("blockend", func() {})
 	f.Set("expr", func(op, tokenType, val string) (any, error) {
@@ -312,9 +492,26 @@ func globalSet(f *Interpreter) {
 		case "strb64":
 			f.Push(NewString(val, true))
 		default:
+			return val, fmt.Errorf("invalid token type: %s", tokenType)
 		}
-		return val, fmt.Errorf("invalid token type: %s", tokenType)
+		return val, nil
 	})
+	f.Set("for_init", func(_, op string) (any, error) {
+
+		return nil, nil
+	})
+	f.Set("for_init_end", func(_, op string) (any, error) {
+		return nil, nil
+	})
+	f.Set("for_step", func(_, op string) (any, error) {
+		f.UnionStack.Push("for_step", []any{})
+		return nil, nil
+	})
+	f.Set("for_step_end", func(_, op string) (any, error) {
+		f.UnionStack.Pop()
+		return nil, nil
+	})
+
 	f.Set("blockstart", func() {})
 	f.Set("printstack", func() {
 		f.PrintStack()
@@ -332,43 +529,20 @@ func globalSet(f *Interpreter) {
 	})
 	f.Set("call_arg", func(op, label, fnName, cnt string) (any, error) {
 		// call_arg L3 print 1
-		f.UnionStack.Push(label, []any{fnName, cnt})
 		return nil, nil
 	})
-	f.Set("CALL", func(op, label, Name string) (any, error) {
-		log.Printf("call %s %s", op, Name)
-		return nil, nil
-	})
-	f.Set("OP", func(opname, plus string) (any, error) {
-		switch plus {
-		case "+":
-			num1 := f.Pop()
-			num2 := f.Pop()
-			f.Push(NewNumber(num1.F() + num2.F()))
-		case "-":
-			num1 := f.Pop()
-			num2 := f.Pop()
-			f.Push(NewNumber(num1.F() - num2.F()))
-		case "*":
-			num1 := f.Pop()
-			num2 := f.Pop()
-			f.Push(NewNumber(num1.F() * num2.F()))
-		case "/":
-			num1 := f.Pop()
-			num2 := f.Pop()
-			f.Push(NewNumber(num1.F() / num2.F()))
-		case "=":
-			f.PrintStack()
-			num1 := f.Pop()
-			variableVal := f.Pop()
-			variableVal.setter(f, num1.Any())
-			// f.UnionStack.SetVarAtTop(num2.SysName(), num1)
-			f.Push(variableVal)
-		default:
-			return nil, ErrInvalidOp
+	f.Set("CALL", func(op, label, Name, cnt string) (any, error) {
+		N := cast.ToInt(cnt)
+		rev := make([]any, N)
+		for k := N - 1; k >= 0; k-- {
+			ele := f.Pop()
+			rev[k] = ele.Any()
 		}
-		return f.Top().Any(), nil
+		log.Printf("FUNCTIONCALL %s %s %s %v", op, Name, cnt, Json(rev))
+		return nil, nil
 	})
+
+	f.Set("OP", f.OP)
 	f.Set("ASSIGN", func(op, arg string) (any, error) {
 		num1 := f.Pop()
 		variableVal := f.Pop()
@@ -382,3 +556,79 @@ func globalSet(f *Interpreter) {
 var (
 	ErrInvalidOp = fmt.Errorf("invalid op")
 )
+
+func (f *Interpreter) OP(op, plus string) (any, error) {
+	switch plus {
+	case "+":
+		num1 := f.Pop()
+		num2 := f.Pop()
+		f.Push(NewNumber(num1.F() + num2.F()))
+	case "-":
+		num1 := f.Pop()
+		num2 := f.Pop()
+		f.Push(NewNumber(num1.F() - num2.F()))
+	case "*":
+		num1 := f.Pop()
+		num2 := f.Pop()
+		f.Push(NewNumber(num1.F() * num2.F()))
+	case "/":
+		num1 := f.Pop()
+		num2 := f.Pop()
+		f.Push(NewNumber(num1.F() / num2.F()))
+	case "=":
+		num1 := f.Pop()
+		variableVal := f.Pop()
+		variableVal.setter(f, num1.Any())
+		if e := f.LookupVar(variableVal.Symbol); e != nil {
+			e.setter(f, variableVal.Any())
+			return nil, nil
+		}
+		f.Push(variableVal)
+	case "<":
+		num1 := f.Pop()
+		vari := f.Pop()
+		f.Push(NewBool(vari.CompareTo(num1) < 0))
+		return f.Top(), nil
+	case "++":
+		num1 := f.Pop()
+		num1.setter(f, num1.F()+1)
+		f.Push(num1)
+	case ">":
+		num1 := f.Pop()
+		vari := f.Pop()
+		f.Push(NewBool(vari.CompareTo(num1) > 0))
+		return f.Top(), nil
+	case "<=":
+		num1 := f.Pop()
+		vari := f.Pop()
+		f.Push(NewBool(vari.CompareTo(num1) <= 0))
+		return f.Top(), nil
+	case ">=":
+		num1 := f.Pop()
+		vari := f.Pop()
+		f.Push(NewBool(vari.CompareTo(num1) >= 0))
+		return f.Top(), nil
+	case "!=":
+		num1 := f.Pop()
+		vari := f.Pop()
+		f.Push(NewBool(vari.CompareTo(num1) != 0))
+		return f.Top(), nil
+	case "==":
+		num1 := f.Pop()
+		numvar := f.Pop()
+		f.Push(NewBool(num1.Any() == numvar.Any()))
+		return f.Top(), nil
+	default:
+		log.Printf("invalid op: %s", plus)
+		return nil, ErrInvalidOp
+	}
+	return f.Top().Any(), nil
+}
+
+func Json(v any) string {
+	bs, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+	return string(bs)
+}

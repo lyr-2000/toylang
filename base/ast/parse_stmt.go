@@ -1,8 +1,8 @@
 package ast
 
 import (
-	"strings"
 	"github.com/lyr-2000/toylang/base/lexer"
+	"strings"
 )
 
 type Stmt struct {
@@ -35,6 +35,17 @@ func ParseStmt(t *Tokens) Anode {
 	}
 	return bn
 }
+
+var (
+	keywordMap = map[string]struct{}{
+		"break":      {},
+		"continue":   {},
+		"debugger":   {},
+		"printstack": {},
+		// "fatal":{},
+	}
+)
+
 func parseStmt(t *Tokens) Anode {
 	for t.hasNext() {
 		if t.hasNext() && t.current().Value == ";" {
@@ -55,11 +66,11 @@ func parseStmt(t *Tokens) Anode {
 	var token = t.next()
 	var head = t.peek()
 	t.back(prev)
-	if token.Value == "break" {
-		brk := new(BreakFlagStmt)
-		brk.Lexeme = token
+	if _, ok := keywordMap[token.Value.(string)]; ok {
+		cont := new(KeywordStmt)
+		cont.Lexeme = token
 		t.next()
-		return brk
+		return cont
 	}
 	if strings.EqualFold(token.Value.(string), "for") || strings.EqualFold(token.Value.(string), "while") {
 		return parseForStmt(t)
