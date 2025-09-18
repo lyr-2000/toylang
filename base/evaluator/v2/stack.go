@@ -11,6 +11,8 @@ type LabelStack struct {
 	ParamsName []string
 	Params     []any
 	top        int
+	Line int
+	// ReturnValue any
 }
 
 func ParamsString(params ...any) string {

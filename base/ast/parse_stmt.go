@@ -98,7 +98,7 @@ func parseStmt(t *Tokens) Anode {
 		//var a = 1
 		//define
 		return parseDeclareStmt(t)
-	} else if token.Value == "fn" {
+	} else if isFuncKeyword(token.Value.(string)) {
 		return parseFn(t)
 	}
 

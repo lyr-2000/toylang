@@ -114,11 +114,11 @@ func (f *FnParam) Output(w *Writer) {
 		return
 	}
 	writeln(w, []string{"fn_arg_count", cast.ToString(len(f.Children))})
-	for _, v := range f.Children {
+	for i, v := range f.Children {
 		if v == nil {
 			continue
 		}
-		writeln(w, []string{"fn_arg", v.GetLexeme().ToString()})
+		writeln(w, []string{"fn_arg", v.GetLexeme().ToString(), cast.ToString(i)})
 	}
 }
 
@@ -222,13 +222,17 @@ func (f *FuncStmt) Output(w *Writer) {
 	if f == nil {
 		return
 	}
-	wx := w.Ln()
+	labelName := w.Ln()
 	fnName := f.GetLexeme().Value.(string)
-	writeln(w, []string{"funcStmtBegin", wx, fnName})
-	defer writeln(w, []string{"funcStmtEnd", wx, fnName})
-	writeln(w, []string{f.GetLexeme().Value.(string)})
+	paramCount := 0
+	if param, ok := f.Children[0].(*FnParam);ok {
+		paramCount = len(param.Children)
+	}
+	writeln(w, []string{"funcStmtBegin", labelName, fnName, cast.ToString(paramCount)})
+	writeln(w, []string{"funcEntry", fnName,labelName, cast.ToString(paramCount)})
+	defer writeln(w, []string{"funcStmtEnd", labelName, fnName})
 	if len(f.Children) == 0 {
-		writeln(w, []string{"func_param_empty", wx})
+		writeln(w, []string{"func_param_empty", labelName})
 		return
 	}
 	param, ok := f.Children[0].(*FnParam)

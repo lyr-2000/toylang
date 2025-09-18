@@ -36,14 +36,22 @@ func parseFnParameter(t *Tokens) Node {
 	result.Children = exprNode
 	return result
 }
-
+var funcKeyword = map[string]struct{}{
+	"fn":struct{}{},
+	"function":struct{}{},
+	"func":struct{}{},
+}
+func isFuncKeyword(p string) bool {
+	_, ok := funcKeyword[p]
+	return ok
+}
 func parseFn(t *Tokens) Node {
 	if !t.hasNext() {
 		return nil
 	}
 
 	p := t.peek()
-	if p == "fn" || p == "function" {
+	if _, ok := funcKeyword[p]; ok {
 		t.i++
 	}
 	//function app() { a=11111; }

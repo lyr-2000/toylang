@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"reflect"
+
+	// "reflect"
 	"strings"
 
 	"github.com/spf13/cast"
@@ -16,22 +19,63 @@ import (
 // v2 evaluator
 
 type Interpreter struct {
+	Stdout io.Writer
+	Logger *log.Logger
+	Debug  bool
 	// Code [][]string
 	CodeReader io.Reader
 	globalVar  map[string]any
 	UnionStack *UnionStack
 	Labels     map[string]int
 
-	handler0 map[string]Handler0
-	handler1 map[string]Handler1
-	handler2 map[string]Handler2
-	handler3 map[string]Handler3
-	handler4 map[string]Handler4
-	Nop      map[string]Nop
-	stopDo   bool
-	// stack        *list.Stack
-	Program      [][]string
-	ProgramIndex int
+	handler0       map[string]Handler0
+	handler1       map[string]Handler1
+	handler2       map[string]Handler2
+	handler3       map[string]Handler3
+	handler4       map[string]Handler4
+	Nop            map[string]Nop
+	stopDo         bool
+	Program        [][]string
+	ProgramIndex   int
+	funcAt         map[string][]int
+	funcParamCount map[string]int
+
+	ErrCode  int
+	ExitCode int
+	ErrMsg   string
+}
+
+func (r *Interpreter) scanFuncLine() {
+	if r.funcAt == nil {
+		r.funcAt = make(map[string][]int)
+	}
+	if r.funcParamCount == nil {
+		r.funcParamCount = make(map[string]int)
+	}
+	for i := 0; i < len(r.Program); i++ {
+		line := r.Program[i]
+		if strings.EqualFold(line[0], "funcStmtBegin") {
+			at := i
+			label := line[1]
+			fnName := line[2]
+			paramCount := cast.ToInt(line[3])
+			r.funcParamCount[fnName] = paramCount
+			for j := i; j < len(r.Program); j++ {
+				if strings.EqualFold(r.Program[j][0], "funcStmtEnd") {
+					label2 := r.Program[j][1]
+					if label2 == label {
+						r.funcAt[fnName] = []int{at, j}
+						break
+					}
+				}
+			}
+			if r.funcAt[fnName] == nil {
+				log.Panicf("func %s not found", fnName)
+
+			}
+		}
+
+	}
 }
 
 func (r *Interpreter) Top() *RefValue {
@@ -127,12 +171,15 @@ func (r *Interpreter) PrintStack() {
 		log.Printf("stack: %s\n", buf.String())
 	}
 }
+
 func (r *Interpreter) do(allf []string) {
 	if len(allf) == 0 {
 		return
 	}
 	name, args := strings.ToUpper(allf[0]), allf[1:]
-	log.Printf("cmd: %s,paramLen: %v, args: %v", name, len(args), args)
+	if r.Debug {
+		log.Printf("cmd: %s,paramLen: %v, args: %v", name, len(args), args)
+	}
 	h, ok := r.hasHandler(name, len(args)+1)
 	if !ok {
 		r.stopDo = true
@@ -189,6 +236,7 @@ func (r *Interpreter) Handle() {
 	}
 	r.Program = all
 	r.ProgramIndex = 0
+	r.scanFuncLine()
 	for r.ProgramIndex < len(r.Program) {
 		r.do(r.Program[r.ProgramIndex])
 		r.ProgramIndex++
@@ -202,7 +250,7 @@ type Handler3 = func(op string, arg1, arg2 string) (any, error)
 type Handler4 = func(op string, arg1, arg2, arg3 string) (any, error)
 
 func (r *Interpreter) Set(handlerName string, handler any) {
-	log.Println("set", handlerName, reflect.TypeOf(handler))
+	// log.Println("set", handlerName, reflect.TypeOf(handler))
 	handlerName = strings.ToUpper(handlerName)
 	switch handler := handler.(type) {
 	case Handler0:
@@ -231,21 +279,41 @@ type RefValue struct {
 	Value       any
 }
 
+func (r *RefValue) ReplaceAsVar(varName string) {
+	r.Symbol = varName
+	r.Type = "VAR"
+	r.Value = r.getter(r.Interpreter)
+}
+
 func (r *RefValue) String() string {
 	return fmt.Sprintf("%s %v", r.Symbol, r.Any())
 }
 
+func NewVar2(symbol string, f any) *RefValue {
+	d := &RefValue{
+		Symbol: symbol,
+		Type:   "VAR",
+		Value:  f,
+	}
+	d.setter = func(b *Interpreter, v any) {
+		d.Value = v
+	}
+	d.getter = func(b *Interpreter) any {
+		return d.Value
+	}
+	return d
+}
+
 func NewVar(symbol string) *RefValue {
 	d := &RefValue{
-		getter: func(b *Interpreter) any {
-			return b.globalVar[symbol]
-		},
 		Symbol: symbol,
 		Type:   "VAR",
 	}
 	d.setter = func(b *Interpreter, v any) {
-		b.globalVar[symbol] = v
 		d.Value = v
+	}
+	d.getter = func(b *Interpreter) any {
+		return d.Value
 	}
 	return d
 }
@@ -323,8 +391,17 @@ func (r *RefValue) Any() any {
 func (r *RefValue) F() float64 {
 	return cast.ToFloat64(r.getter(r.Interpreter))
 }
+func (r *RefValue) I() int {
+	return cast.ToInt(r.getter(r.Interpreter))
+}
 func (r *RefValue) Str() string {
-	return cast.ToString(r.getter(r.Interpreter))
+	el := r.getter(r.Interpreter)
+	d := reflect.ValueOf(el)
+	switch d.Kind() {
+	case reflect.Map, reflect.Struct:
+		return fmt.Sprintf("%v", el)
+	}
+	return cast.ToString(el)
 }
 
 func (r *RefValue) Plus(b *RefValue) *RefValue {
@@ -345,13 +422,14 @@ func New() *Interpreter {
 	}
 	sb.Push("GLOBAL", []any{})
 	b := &Interpreter{
-		handler0: make(map[string]Handler0),
-		handler1: make(map[string]Handler1),
-		handler2: make(map[string]Handler2),
-		handler3: make(map[string]Handler3),
-		handler4: make(map[string]Handler4),
-		Nop:      make(map[string]Nop),
-		// stack:     list.NewStack(),
+		Stdout:     os.Stdout,
+		Logger:     log.New(os.Stdout, "SYS", log.LstdFlags),
+		handler0:   make(map[string]Handler0),
+		handler1:   make(map[string]Handler1),
+		handler2:   make(map[string]Handler2),
+		handler3:   make(map[string]Handler3),
+		handler4:   make(map[string]Handler4),
+		Nop:        make(map[string]Nop),
 		globalVar:  make(map[string]any),
 		UnionStack: sb,
 		Labels:     make(map[string]int),
@@ -360,15 +438,26 @@ func New() *Interpreter {
 	return b
 }
 
+func (r *Interpreter) LookupRevIndex(idx int) *RefValue {
+	for i := r.UnionStack.top; i >= 0; i-- {
+		stack := r.UnionStack.Stack[i]
+		for j := stack.Index(); j >= 0; j-- {
+			if idx == 0 {
+				return stack.Params[j].(*RefValue)
+			}
+			idx--
+		}
+	}
+	return nil
+}
+
 func (r *Interpreter) LookupVar(name string) *RefValue {
 	for i := r.UnionStack.top; i >= 0; i-- {
 		stack := r.UnionStack.Stack[i]
 		for j := stack.Index(); j >= 0; j-- {
-			if stack.ParamsName[j] == "VAR" {
-				el := stack.Params[j].(*RefValue)
-				if el.Symbol == name {
-					return stack.Params[j].(*RefValue)
-				}
+			el := stack.Params[j].(*RefValue)
+			if el.Type == "VAR" && el.Symbol == name {
+				return stack.Params[j].(*RefValue)
 			}
 		}
 	}
@@ -379,12 +468,12 @@ func (r *Interpreter) GetGlobalVar(name string) any {
 	return r.globalVar[name]
 }
 func (r *Interpreter) SetGlobalVar(name string, v any) {
-	log.Println("set global var", name, v)
+	// log.Println("set global var", name, v)
 	r.globalVar[name] = v
 }
 
 // TODO: check fast
-func (f *Interpreter) GOTO(index int, prefix, arg string) {
+func (f *Interpreter) GOTO(index int, prefix, arg string) bool {
 	for i := index; i < len(f.Program); i++ {
 		line := f.Program[i]
 		if len(line) == 0 {
@@ -393,23 +482,27 @@ func (f *Interpreter) GOTO(index int, prefix, arg string) {
 		if strings.EqualFold(line[0], prefix) {
 			if len(line) > 1 {
 				if line[1] == arg {
-					log.Printf("goto %s %s", prefix, arg)
+					// log.Printf("goto %s %s", prefix, arg)
 					f.ProgramIndex = i - 1
-					return
+					return true
 				}
 			}
 		}
 	}
-	log.Panicf("!cmd error: goto %s %s not found", prefix, arg)
+
+	// log.Panicf("!cmd error: goto %s %s not found", prefix, arg)
+	return false
 }
 
 func globalSet(f *Interpreter) {
+	f.scanFuncLine()
 	if len(f.Nop) > 0 || len(f.handler2) > 0 {
 		return
 	}
-	f.Set("VAR", func(op string, arg string) (any, error) {
-		f.Push(NewVar(arg))
-		return arg, nil
+	f.Set("@RETURNBEGIN", func() {})
+	f.Set("@RETURN", func(op string, label string) (any, error) {
+		p := f.UnionStack.Top()
+		return popFn(f, p.Label)
 	})
 	f.Set("forStmtBegin", func(_, label string, nodeCount string) (any, error) {
 		f.Labels[label] = f.Index()
@@ -449,7 +542,11 @@ func globalSet(f *Interpreter) {
 
 	// GOTO #ENDIF L6
 	f.Set("GOTO", func(op, syslabel, label2 string) (any, error) {
-		f.GOTO(f.Index(), syslabel, label2)
+		if !f.GOTO(f.Index(), syslabel, label2) {
+			if !f.GOTO(0, syslabel, label2) {
+				log.Panicf("!cmd error: goto %s %s not found", syslabel, label2)
+			}
+		}
 		return nil, nil
 	})
 	f.Set("if", func() {})
@@ -485,7 +582,7 @@ func globalSet(f *Interpreter) {
 		switch tokenType {
 		case "number":
 			f.Push(NewNumber(cast.ToFloat64(val)))
-		case "str":
+		case "str", "string":
 			f.Push(NewString(val, false))
 		case "variable":
 			f.Push(NewVar(val))
@@ -518,9 +615,13 @@ func globalSet(f *Interpreter) {
 	})
 
 	f.Set("var", func(op, _, arg string) (any, error) {
-		// f.UnionStack.SetVarAtTop(arg, nil)
-		f.Push(NewVar(arg))
-		return nil, nil
+		p := f.LookupVar(arg)
+		if p != nil {
+			f.Push(p)
+		} else {
+			f.Push(NewVar(arg))
+		}
+		return f.Top(), nil
 	})
 	f.Set("declare", func(op, arg string) (any, error) {
 		// f.UnionStack.SetVarAtTop(arg, nil)
@@ -533,12 +634,29 @@ func globalSet(f *Interpreter) {
 	})
 	f.Set("CALL", func(op, label, Name, cnt string) (any, error) {
 		N := cast.ToInt(cnt)
-		rev := make([]any, N)
+		rev := make([]*RefValue, N)
 		for k := N - 1; k >= 0; k-- {
 			ele := f.Pop()
-			rev[k] = ele.Any()
+			rev[k] = ele
 		}
-		log.Printf("FUNCTIONCALL %s %s %s %v", op, Name, cnt, Json(rev))
+		if f.Debug {
+			log.Printf("FUNCTIONCALL %s %s %s %v", op, Name, cnt, Json(rev))
+		}
+		if fn, ok := inlineFunc[Name]; ok {
+			d := fn(f, rev...)
+			f.Push(NewVar2("@return", d))
+			return nil, nil
+		}
+		_, ok := f.funcAt[Name]
+		if !ok {
+			log.Panicf("function %s not found", Name)
+		}
+		return langFuncCall(f, Name, rev...)
+	})
+	f.Set("fn_arg", func(_, varType, varName, cnt string) (any, error) {
+		idx := cast.ToInt(cnt)
+		ele := f.LookupRevIndex(idx)
+		ele.ReplaceAsVar(varName)
 		return nil, nil
 	})
 
@@ -551,11 +669,72 @@ func globalSet(f *Interpreter) {
 		f.Push(variableVal)
 		return nil, nil
 	})
+	f.Set("funcStmtBegin", func(op, label, funcName, cnt string) (any, error) {
+		f.skipFuncLine(funcName)
+		return nil, nil
+	})
+	f.Set("funcEntry", func(op, funcName, label, cnt string) (any, error) {
+		return nil, nil
+	})
+	f.Set("FN_ARG_COUNT", func(op, cnt string) (any, error) {
+		return nil, nil
+	})
+	f.Set("funcStmtEnd", func(op, _, funcName string) (any, error) {
+		return popFn(f, funcName)
+	})
+	f.Set("@getvalue", func(op, varName, varType, keyvalue string) (any, error) {
+		d := getArrayOrMap(f, varName, varType, keyvalue)
+		f.Push(NewVar2("@getVal", d))
+		return nil, nil
+	})
+}
+
+func getArrayOrMap(b *Interpreter, varName, varType, keyvalue string) any {
+	d := b.LookupVar(varName)
+
+	switch varType {
+	case "number":
+		bb, ok := d.Any().([]any)
+		idx := cast.ToInt(keyvalue)
+		if ok && bb != nil && idx >= 0 && idx < len(bb) {
+			return bb[cast.ToInt(keyvalue)]
+		}
+		fallthrough
+	default:
+		bb, ok := d.Any().(map[string]any)
+		if ok && bb != nil {
+			return bb[keyvalue]
+		}
+		return nil
+	}
+
+}
+
+func popFn(f *Interpreter, fname string) (any, error) {
+	ln := f.UnionStack.Top()
+	f.UnionStack.Pop()
+	// ln.Line
+
+	f.ProgramIndex = ln.Line
+	if ln.Top() != nil {
+		f.UnionStack.Top().Push("@0", ln.Top())
+	} else {
+		f.UnionStack.Top().Push("@0", NewNumber(0))
+	}
+	return f.UnionStack.Top(), nil
 }
 
 var (
 	ErrInvalidOp = fmt.Errorf("invalid op")
 )
+
+func (f *Interpreter) skipFuncLine(funcName string) {
+	at, ok := f.funcAt[funcName]
+	if !ok {
+		log.Panicf("func %s not found", funcName)
+	}
+	f.ProgramIndex = at[1]
+}
 
 func (f *Interpreter) OP(op, plus string) (any, error) {
 	switch plus {
@@ -631,4 +810,120 @@ func Json(v any) string {
 		return ""
 	}
 	return string(bs)
+}
+
+type InlineFunc func(f *Interpreter, args ...*RefValue) any
+
+var (
+	inlineFunc = map[string]InlineFunc{
+		"print":   printLn,
+		"throw":   throwErr,
+		"recover": recoverErr,
+		"fatal":   fatalErr,
+		"array":   NewArray,
+		"map":     NewMap,
+		"set":     exitCodeSet,
+		"exit":    exitCodeSet,
+	}
+)
+
+func exitCodeSet(f *Interpreter, args ...*RefValue) any {
+	varObj := args[0]
+	el := varObj.I()
+	f.ExitCode = el
+	return f.ExitCode
+}
+func setArrayOrMap(f *Interpreter, args ...*RefValue) any {
+	varObj := args[0]
+	key := args[1].Str()
+	value := args[2].Any()
+	el := varObj.Any()
+	switch arr := el.(type) {
+	case []any:
+		idx := cast.ToInt(key)
+		if idx >= 0 && idx < len(arr) {
+			arr[idx] = value
+		}
+	case map[string]any:
+		arr[key] = value
+	default:
+	}
+
+	return nil
+}
+
+func NewMap(f *Interpreter, args ...*RefValue) any {
+	d := make(map[string]any)
+	for i := 0; i+1 < len(args); i += 2 {
+		d[args[i].Str()] = args[i+1].Any()
+	}
+	return d
+}
+func NewArray(f *Interpreter, args ...*RefValue) any {
+	d := make([]any, len(args))
+	for i, v := range args {
+		d[i] = v.Any()
+	}
+	return d
+}
+
+func fatalErr(f *Interpreter, args ...*RefValue) any {
+	var buf strings.Builder
+	for _, v := range args {
+		buf.WriteString(v.Str())
+	}
+	f.Logger.Fatal(buf.String())
+	return nil
+}
+func recoverErr(f *Interpreter, args ...*RefValue) any {
+	if f.ErrCode == 0 {
+		return nil
+	}
+	d := make(map[string]any)
+	d["code"] = f.ErrCode
+	d["msg"] = f.ErrMsg
+	f.ErrCode = 0
+	f.ErrMsg = ""
+	return d
+}
+func throwErr(f *Interpreter, args ...*RefValue) any {
+	f.ErrCode = args[0].I()
+	f.ErrMsg = args[0].Str()
+	return nil
+}
+
+func printLn(f *Interpreter, args ...*RefValue) any {
+	var buf strings.Builder
+	for _, v := range args {
+		buf.WriteString(v.Str())
+	}
+	fmt.Fprintln(f.Stdout, buf.String())
+	f.Push(NewNumber(1))
+	return nil
+}
+
+func langFuncCall(f *Interpreter, fnName string, args ...*RefValue) (any, error) {
+	f.UnionStack.Push(fnName, []any{})
+	top := f.UnionStack.Top()
+	top.Line = f.Index()
+	// should push stack
+	// todo: push param stack
+	// todo: defer pop param stack
+	// f.Push(NewNumber(1))
+	cnt := f.funcParamCount[fnName]
+	if cnt < len(args) {
+		log.Panicf("func %s param count mismatch, expected %d, got %d", fnName, cnt, len(args))
+	}
+	nilCnt := cnt - len(args)
+	for i := 0; i < nilCnt; i++ {
+		f.Push(NewNumber(0))
+	}
+	for i := len(args) - 1; i >= 0; i-- {
+		f.Push(args[i])
+	}
+	d := f.funcAt[fnName]
+
+	//TODO:  program call
+	f.GOTO(d[0], "funcEntry", fnName)
+	return nil, nil
 }

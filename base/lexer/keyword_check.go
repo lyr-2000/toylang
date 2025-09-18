@@ -139,7 +139,7 @@ var (
 		"else",
 		"const",
 		"def",
-		"fn",
+		"fn","func",
 		"function",
 		"int",
 		"float",

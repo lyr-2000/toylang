@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
-	"github.com/lyr-2000/toylang/base/evaluator"
+	// "github.com/lyr-2000/toylang/base/evaluator"
+	"github.com/lyr-2000/toylang/base/compiler"
+	"github.com/lyr-2000/toylang/base/evaluator/v2"
 )
 
 func main() {
@@ -27,13 +30,18 @@ func main() {
 		fmt.Println("read file error:", err)
 		return
 	}
+	// fmt.Println(string(code))
+	vm := evaluator.New()
+	byteCode := compiler.Compile(string(code))
+	vm.SetReader(strings.NewReader(string(byteCode)))
+	vm.Handle()
+	if vm.ExitCode != 0 {
+		log.Fatal("exit code:", vm.ExitCode)
+		return
+	}
+	if vm.ErrCode != 0 {
+		log.Fatal("error code:", vm.ErrCode, "error message:", vm.ErrMsg)
+		return
+	}
 
-	vm := evaluator.NewCodeRunner()
-	exit,err := vm.ParseAndRunRecover(string(code))
-	if err != nil {
-		log.Fatalf("panic error: %v", err)
-	}
-	if exit != 0 {
-		log.Fatalf("exit code: %d", exit)
-	}
 }

@@ -5,7 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lyr-2000/toylang/base/ast"
 	"github.com/lyr-2000/toylang/base/compiler"
+	"github.com/lyr-2000/toylang/base/evaluator"
 )
 
 func Test_v2_1(t *testing.T) {
@@ -39,8 +41,10 @@ print(a);
 	fmt.Println(b.Top().Str())
 	t.Log(b.Top().Str())
 }
+
 /*
 #IF L2
+
 	if L3
 	var variable a
 	endif L3 ELSEIF L2
@@ -76,12 +80,12 @@ print(a);
 	GOTO #ENDIF L6
 	#ENDIF L6
 	GOTO #ENDIF L2
+
 #ENDIF L2
 call_arg L12 print 1
 expr string end
 call L12 print
 blockend L1
-
 */
 func Test_v2_IFcond(t *testing.T) {
 	b := New()
@@ -110,7 +114,6 @@ func Test_v2_IFcond(t *testing.T) {
 	t.Log(b.Top().Str())
 }
 
-
 func Test_v2_Forcond(t *testing.T) {
 	b := New()
 	globalSet(b)
@@ -138,9 +141,6 @@ func Test_v2_Forcond(t *testing.T) {
 	t.Log(b.Top().Str())
 }
 
-
-
-
 func Test_v2_FnStmt(t *testing.T) {
 	b := New()
 	globalSet(b)
@@ -162,7 +162,6 @@ func Test_v2_FnStmt(t *testing.T) {
 	fmt.Println(b.Top().Str())
 	t.Log(b.Top().Str())
 }
-
 
 func Test_simple_if(t *testing.T) {
 	b := New()
@@ -187,7 +186,6 @@ if(a==2) {
 	fmt.Println(b.Top().Str())
 	t.Log(b.Top().Str())
 }
-
 
 func Test_simple_for(t *testing.T) {
 	b := New()
@@ -230,4 +228,90 @@ for(i=0;i<10;i++) {
 	b.Handle()
 	fmt.Println(b.Top().Str())
 	t.Log(b.Top().Str())
+}
+
+/*
+   funcStmtBegin L2 getUser 3
+        funcEntry getUser L2 3
+        fn_arg_count 3
+        fn_arg variable a 0
+        fn_arg variable b 1
+        fn_arg variable c 2
+        blockstart L3
+        call_arg L4 print 1
+        var variable a
+        call L4 print 1
+        blockend L3
+        funcStmtEnd L2 getUser
+        call_arg L5 getUser 3
+        expr number 2
+        expr number 3
+        expr number 3
+        call L5 getUser 3
+        printstack
+        blockend L1
+
+
+*/
+
+func Test_func_decl(t *testing.T) {
+	b := New()
+	raw := `
+func getUser(a,b,c) {
+    if c == 3 {
+	    print("C",c)
+		return 44
+	}
+	return 233
+}
+
+d = getUser(2,3,3)
+
+print(d)
+
+for i=0;i<3;i++ {
+	print(d)
+}
+
+throw( 12000,"error")
+print(recover())
+print("---")
+
+printstack;
+	`
+	sc := compiler.Compile(raw)
+	t.Log("~~")
+	t.Log(sc)
+	d := evaluator.ParseSourceTree(raw)
+	t.Log(ast.ShowTree(d))
+	b.SetReader(strings.NewReader(sc))
+	b.Handle()
+	// t.Log(b.Top().Str())
+}
+
+
+func Test_throw_recover(t *testing.T) {
+	b := New()
+	raw := `
+
+fn call1(inputStr) {
+    arr = array(1,2,3)
+    print(arr[2])
+    //print(arr[3])
+    print(1,2,3)
+    set(arr,0,2)
+    print(arr)
+    print("inputStr",inputStr);
+    exit(0)
+}
+
+call1("~")
+
+
+	`
+	sc := compiler.Compile(raw)
+	t.Log("byte codes :",sc)
+	t.Log("~~")
+	b.SetReader(strings.NewReader(sc))
+	b.Handle()
 }
