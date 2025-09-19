@@ -44,6 +44,7 @@ type Interpreter struct {
 	ErrCode  int
 	ExitCode int
 	ErrMsg   string
+	MaxStack uint16 // max function stackSize 65535 
 }
 
 func (r *Interpreter) scanFuncLine() {
@@ -244,8 +245,17 @@ func (r *Interpreter) Handle() {
 	r.scanFuncLine()
 	for r.ProgramIndex < len(r.Program) {
 		freeStackMem(r, r.Program[r.ProgramIndex])
+		stackoverflowCheck(r)
 		r.do(r.Program[r.ProgramIndex])
 		r.ProgramIndex++
+	}
+}
+
+// check stackoverflow
+func stackoverflowCheck(f *Interpreter) {
+	if f.UnionStack.FuncStackCount >= f.MaxStack {
+		log.Panicf("stackoverflow check ,currentFuncStackCount: %d,maxStackSize: %d,allStackCount: %d",
+			f.UnionStack.FuncStackCount, f.MaxStack, len(f.UnionStack.Stack))
 	}
 }
 
@@ -267,11 +277,12 @@ func freeStackMem(f *Interpreter, line []string) {
 			if d == nil {
 				return
 			}
-			switch d.Type {
-			case "NUMBER":
+			// Constant values will not be modified and have no variable references, so they can be cleaned up directly
+			if !is(d.Type, "VAR") {
 				p.Pop()
 				continue
 			}
+			// If the return value is not used, clean it up to avoid occupying stack space
 			if d.Symbol == "@return" {
 				p.Pop()
 				continue
@@ -494,9 +505,15 @@ func (r *RefValue) Str() string {
 }
 
 func (r *RefValue) Plus(b *RefValue) *RefValue {
-	switch r.Type {
-	case "NUMBER":
-		return NewNumber(r.F() + b.F())
+	switch ele := r.Any().(type) {
+	case float64:
+		return NewNumber(ele + b.F())
+	case int, int64, int32, int16, int8:
+		return NewNumber(float64(cast.ToInt64(ele) + cast.ToInt64(b.I())))
+	case bool:
+		return NewBool(ele || b.Bool())
+	case string:
+		return NewString(ele+b.Str(), false)
 	}
 	return NewString(r.Str()+b.Str(), false)
 }
@@ -509,7 +526,7 @@ func New() *Interpreter {
 		top:      -1,
 		AssignId: 0,
 	}
-	sb.Push("GLOBAL", []*RefValue{})
+	sb.PushB("GLOBAL", []*RefValue{})
 	b := &Interpreter{
 		Stdout:     os.Stdout,
 		Logger:     log.New(os.Stdout, "SYS", log.LstdFlags),
@@ -522,6 +539,7 @@ func New() *Interpreter {
 		globalVar:  make(map[string]any),
 		UnionStack: sb,
 		Labels:     make(map[string]int),
+		MaxStack:   1024,
 	}
 	globalSet(b)
 	return b
@@ -595,13 +613,17 @@ func globalSet(f *Interpreter) {
 		return
 	}
 	f.Set("@RETURNBEGIN", func() {})
+	f.Set("@RETURN", func(op string, label,void string) (any, error) {
+		p := f.UnionStack.Top()
+		return popFn(f, p.Label)
+	})
 	f.Set("@RETURN", func(op string, label string) (any, error) {
 		p := f.UnionStack.Top()
 		return popFn(f, p.Label)
 	})
 	f.Set("forStmtBegin", func(_, label string, nodeCount string) (any, error) {
 		f.Labels[label] = f.Index()
-		f.UnionStack.Push("FOR", []*RefValue{})
+		f.UnionStack.PushB("FOR", []*RefValue{})
 		return nil, nil
 	})
 	f.Set("forStmtEnd", func(_, label string) (any, error) {
@@ -699,7 +721,7 @@ func globalSet(f *Interpreter) {
 		return nil, nil
 	})
 	f.Set("for_step", func(_, op string) (any, error) {
-		f.UnionStack.Push("for_step", []*RefValue{})
+		f.UnionStack.PushB("FOR:STEP", []*RefValue{})
 		return nil, nil
 	})
 	f.Set("for_step_end", func(_, op string) (any, error) {
@@ -786,8 +808,14 @@ func globalSet(f *Interpreter) {
 	})
 }
 
-func is(val, kind string) bool {
-	return strings.EqualFold(val, kind)
+func is(val string, kinds ...string) bool {
+	// return strings.EqualFold(val, kind)
+	for _, kind := range kinds {
+		if strings.EqualFold(val, kind) {
+			return true
+		}
+	}
+	return false
 }
 
 func arrayOrMapSetter(i *Interpreter, b *RefValue, d any, mapName, mapKeyType, mapKeyName string) {
@@ -1014,7 +1042,7 @@ func printLn(f *Interpreter, args ...*RefValue) any {
 }
 
 func langFuncCall(f *Interpreter, fnName string, args ...*RefValue) (any, error) {
-	f.UnionStack.Push(fnName, []*RefValue{})
+	f.UnionStack.PushF(fnName, []*RefValue{})
 	top := f.UnionStack.Top()
 	top.Line = f.Index()
 	// should push stack

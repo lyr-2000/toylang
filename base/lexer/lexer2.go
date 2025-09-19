@@ -167,7 +167,7 @@ func (l *LexerWithCache) ReadTokens() []*Token {
 		if isDoubleQuote(c) { //read string
 			result = append(result, l.readString_())
 		} else if (!IsNumber(c)) && IsLiteral(c) { //注意，变量不能用数字开头， bugfix
-			result = append(result, l.readKeywordOrVariableKey_())
+			result = append(result, l.readKeywordOrVariableKey())
 		} else if isSingleQuote(c) {
 			//read char
 			result = append(result, l.readChar_())

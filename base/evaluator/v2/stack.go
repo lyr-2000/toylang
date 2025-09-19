@@ -7,12 +7,11 @@ import (
 )
 
 type LabelStack struct {
-	Label      string
-	// ParamsName []string
-	Params     []*RefValue
-	top        int
-	Line int
-	// ReturnValue any
+	Label     string
+	StackType byte ///function or block ('F',or 'B')
+	Params    []*RefValue
+	top       int
+	Line      int
 }
 
 func ParamsString(params ...any) string {
@@ -32,58 +31,49 @@ type UnionStack struct {
 	Stack    []*LabelStack
 	top      int
 	AssignId uint64
+	FuncStackCount uint16
+	// todo count function stack size
 }
 
-// func (r *UnionStack) SetGlobalVar(name string, v any) {
-// 	if name == "" {
-// 		r.AssignId++
-// 		name = fmt.Sprintf("@%d",r.AssignId)
-// 	}
-// 	r.Stack[0].Push(name, v)
-// }
-
-// func (r *UnionStack) SetVarAtTop(name string, v any) {
-// 	if name == "" {
-// 		r.AssignId++
-// 		name = fmt.Sprintf("@%d",r.AssignId)
-// 	}
-// 	r.Stack[r.top].Push(name, v)
-// }
-
-
-
-func (r *UnionStack) PushWithName(label string, params []*RefValue, names []string) {
-	if len(params) != len(names) {
-		log.Panicf("params and names length mismatch")
+func (r *UnionStack) pushStackx(label string, params []*RefValue, stackType byte) {
+	if stackType == 'F' {
+		r.FuncStackCount++
 	}
 	if r.top+1 >= len(r.Stack) {
 		r.Stack = append(r.Stack, &LabelStack{
-			Label:      label,
-			Params:     params,
-			// ParamsName: names,
-			top:        len(params) - 1,
+			Label:     label,
+			Params:    params,
+			top:       len(params) - 1,
+			StackType: stackType,
 		})
 		r.top++
 		return
 	}
+
 	r.Stack[r.top+1] = &LabelStack{
-		Label:      label,
-		Params:     params,
-		// ParamsName: names,
-		top:        len(params) - 1,
+		Label:     label,
+		Params:    params,
+		top:       len(params) - 1,
+		StackType: stackType,
 	}
 	r.top++
 }
 
 func (r *UnionStack) FreeUnused() {
-	for i:=r.top+1;i<len(r.Stack);i++ {
+	for i := r.top + 1; i < len(r.Stack); i++ {
 		r.Stack[i].FreeUnused()
 	}
 	r.Stack = r.Stack[:r.top+1]
 }
 
-func (r *UnionStack) Push(label string, params []*RefValue) {
-	r.PushWithName(label, params, make([]string, len(params)))
+// function stack
+func (r *UnionStack) PushF(label string, params []*RefValue) {
+	r.pushStackx(label, params,'F')
+}
+
+// block stack
+func (r *UnionStack) PushB(label string, params []*RefValue) {
+	r.pushStackx(label, params,'B')
 }
 
 func (r *UnionStack) Pop() *LabelStack {
@@ -94,6 +84,9 @@ func (r *UnionStack) Pop() *LabelStack {
 
 	d := r.Stack[r.top]
 	r.top--
+	if d.StackType == 'F' {
+		r.FuncStackCount--
+	}
 	return d
 }
 
@@ -133,12 +126,11 @@ func (r *LabelStack) Push(name string, v *RefValue) {
 	r.top++
 }
 
-
 func (r *LabelStack) FreeUnused() {
 	if r == nil {
 		return
 	}
-	for i:=r.top+1;i<len(r.Params);i++ {
+	for i := r.top + 1; i < len(r.Params); i++ {
 		if r.Params[i] != nil {
 			r.Params[i].Free()
 		}
@@ -146,7 +138,6 @@ func (r *LabelStack) FreeUnused() {
 	}
 	r.Params = r.Params[:r.top+1]
 }
-
 
 func (r *LabelStack) Top() *RefValue {
 	if r.top < 0 || r.top >= len(r.Params) {

@@ -190,7 +190,7 @@ func (l *BaseLexer) readNumberTok() *Token {
 	return NewToken(Illegal, nil, l.Pos().Line, l.Pos().Offset)
 }
 
-func (l *BaseLexer) readKeywordOrVariableKey_() *Token {
+func (l *BaseLexer) readKeywordOrVariableKey() *Token {
 
 	var buf = strings.Builder{} //""
 	//buf.WriteRune(ch)

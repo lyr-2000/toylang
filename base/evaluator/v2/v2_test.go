@@ -363,4 +363,36 @@ print(typeof(sliceTest))
 	t.Log("byte codes :", string(byteCode))
 	b.SetReader(strings.NewReader(string(byteCode)))
 	b.Handle()
+	t.Log(b.UnionStack.FuncStackCount)
+}
+
+
+
+
+func Test_parseStackoverflowCheck(t *testing.T) {
+	b := New()
+	raw := `
+
+func call1(d) {
+	if (d>100000) {
+		return
+	}
+	print(d)
+    call1(d+1)
+}
+
+call1(0);
+if errno > 0 {
+	print(recover())
+}else {
+	print("success" )
+}
+`
+	// b.ParseAndRun(raw)
+	byteCode := compiler.Compile(raw)
+	t.Log("byte codes :", string(byteCode))
+	b.SetReader(strings.NewReader(string(byteCode)))
+	b.MaxStack = 100
+	b.Handle()
+	t.Log(b.UnionStack.FuncStackCount)
 }

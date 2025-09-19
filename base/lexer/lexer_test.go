@@ -53,11 +53,11 @@ func Test_readKeywordOrVariableKey_(t *testing.T) {
 
 	Convey("test_lexer_readKeywordOrVariableKey_", t, func() {
 		//var key string
-		tk := lexer.readKeywordOrVariableKey_()
+		tk := lexer.readKeywordOrVariableKey()
 		So(tk.Value, ShouldEqual, "var")
 
 		lexer.Next() // eat space
-		tk = lexer.readKeywordOrVariableKey_()
+		tk = lexer.readKeywordOrVariableKey()
 		So(tk.Value, ShouldEqual, "a")
 
 	})

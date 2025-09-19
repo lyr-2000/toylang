@@ -5,6 +5,12 @@ func parseReturnStmt(t *Tokens) Node {
 	var ret = new(ReturnStmt)
 	ret.Lexeme = t.tokens[t.i]
 	t.next()
+	if t.i < len(t.tokens) {
+		nextval := t.tokens[t.i]
+		if nextval.Value == "}" {
+			return ret
+		}
+	}
 	c := parseExpr(t)
 	if c == nil {
 		return ret

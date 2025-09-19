@@ -47,12 +47,12 @@ func (t *Tokens) NextMust(idx int, must string) {
 
 }
 func parseExpr(t *Tokens) Node {
-	return expr_parse_(t)
+	return pareseExprFunc(t)
 }
 func ParseExpr_(t []*Token) Node {
-	return expr_parse_(&Tokens{t, 0})
+	return pareseExprFunc(&Tokens{t, 0})
 }
-func expr_parse_(t *Tokens) Node {
+func pareseExprFunc(t *Tokens) Node {
 	var e Expr
 	node := e.parseE(t, 0)
 	// log.Printf("read info %+v, %v\n", t.i, len(t.tokens))
@@ -228,7 +228,7 @@ func (e *Expr) parseTop1(t *Tokens) Node {
 	if token.Value == ")" {
 		return nil
 	}
-
+	
 	panic(fmt.Sprintf("cannot explain ast tree %+v", token)) // return nil
 }
 func (e *Expr) parseTop2(t *Tokens) Node {
@@ -249,6 +249,7 @@ func (e *Expr) parseTop2(t *Tokens) Node {
 		// is variable
 		return a
 	}
+	
 	//is variable
 	if t.tokens[t.i].Value == "[" {
 		t.i++
