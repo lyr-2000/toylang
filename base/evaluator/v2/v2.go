@@ -13,6 +13,7 @@ import (
 	// "reflect"
 	"strings"
 
+	"github.com/lyr-2000/toylang/base/compiler"
 	"github.com/spf13/cast"
 )
 
@@ -79,7 +80,7 @@ func (r *Interpreter) scanFuncLine() {
 }
 
 func (r *Interpreter) Top() *RefValue {
-	return r.UnionStack.Top().Top().(*RefValue)
+	return r.UnionStack.Top().Top()
 }
 
 func (r *RefValue) CompareTo(w *RefValue) int {
@@ -123,7 +124,11 @@ func (r *Interpreter) Pop() *RefValue {
 	if b.Top() == nil {
 		return nil
 	}
-	return b.Pop().(*RefValue)
+	ele := b.Pop().(*RefValue)
+	// if ele.Interpreter != nil {
+	// 	ele.Interpreter = nil
+	// }
+	return ele
 }
 func (r *Interpreter) Push(v *RefValue) {
 	v.Interpreter = r
@@ -238,8 +243,42 @@ func (r *Interpreter) Handle() {
 	r.ProgramIndex = 0
 	r.scanFuncLine()
 	for r.ProgramIndex < len(r.Program) {
+		freeStackMem(r, r.Program[r.ProgramIndex])
 		r.do(r.Program[r.ProgramIndex])
 		r.ProgramIndex++
+	}
+}
+
+// freeStackMem Help Gc
+func freeStackMem(f *Interpreter, line []string) {
+	if len(line) == 0 {
+		return
+	}
+	f.UnionStack.FreeUnused()
+	switch strings.ToLower(line[0]) {
+	case "continue", "break", "blockend":
+		p := f.UnionStack.Top()
+		if p == nil {
+			return
+		}
+		p.FreeUnused()
+		for p.Top() != nil {
+			d := p.Top()
+			if d == nil {
+				return
+			}
+			switch d.Type {
+			case "NUMBER":
+				p.Pop()
+				continue
+			}
+			if d.Symbol == "@return" {
+				p.Pop()
+				continue
+			}
+			break
+		}
+
 	}
 }
 
@@ -272,21 +311,43 @@ func (r *Interpreter) Set(handlerName string, handler any) {
 
 type RefValue struct {
 	Interpreter *Interpreter
-	getter      func(b *Interpreter) any
-	setter      func(b *Interpreter, v any)
+	getter      func() any
+	setter      func(v any)
 	Symbol      string
 	Type        string
 	Value       any
 }
 
+func (r *RefValue) Free() {
+	r.Interpreter = nil
+	r.Value = nil
+	r.getter = nil
+	r.setter = nil
+	r.Symbol = ""
+	r.Type = ""
+}
+
 func (r *RefValue) ReplaceAsVar(varName string) {
 	r.Symbol = varName
 	r.Type = "VAR"
-	r.Value = r.getter(r.Interpreter)
+	r.Value = r.getter()
 }
 
 func (r *RefValue) String() string {
 	return fmt.Sprintf("%s %v", r.Symbol, r.Any())
+}
+
+// @getvalue mapValue string a
+func NewArrayOrMapKeyRefValue(f *Interpreter, varName string, keyType, keyName string) *RefValue {
+	ele := NewVar2("@getVal", nil)
+	ele.getter = func() any {
+		d := getArrayOrMap(f, varName, keyType, keyName)
+		return d
+	}
+	ele.setter = func(v any) {
+		arrayOrMapSetter(f, ele, v, varName, keyType, keyName)
+	}
+	return ele
 }
 
 func NewVar2(symbol string, f any) *RefValue {
@@ -295,35 +356,61 @@ func NewVar2(symbol string, f any) *RefValue {
 		Type:   "VAR",
 		Value:  f,
 	}
-	d.setter = func(b *Interpreter, v any) {
-		d.Value = v
+	d.setter = func(v any) {
+		// d.Value = v
+		kindSetter(d, v)
 	}
-	d.getter = func(b *Interpreter) any {
-		return d.Value
+	d.getter = func() any {
+		// return d.Value
+		return kindGetter(d)
 	}
 	return d
 }
 
+var (
+	coreKeywordName = map[string]struct{}{
+		"errno":  {},
+		"errmsg": {},
+	}
+)
+
+func kindSetter(b *RefValue, d any) {
+	if b.Type == "VAR" {
+		if _, ok := coreKeywordName[b.Symbol]; ok {
+			fatalErr(b.Interpreter, b)
+		}
+	}
+	b.Value = d
+}
+
+func kindGetter(b *RefValue) any {
+	if b.Type == "VAR" {
+		if _, ok := coreKeywordName[b.Symbol]; ok {
+			return handleCoreGet(b)
+		}
+	}
+	return b.Value
+}
+func handleCoreGet(b *RefValue) any {
+	if b.Symbol == "errno" {
+		return b.Interpreter.ErrCode
+	}
+	if b.Symbol == "errmsg" {
+		return b.Interpreter.ErrMsg
+	}
+	return nil
+}
+
 func NewVar(symbol string) *RefValue {
-	d := &RefValue{
-		Symbol: symbol,
-		Type:   "VAR",
-	}
-	d.setter = func(b *Interpreter, v any) {
-		d.Value = v
-	}
-	d.getter = func(b *Interpreter) any {
-		return d.Value
-	}
-	return d
+	return NewVar2(symbol, nil)
 }
 
 func NewBool(num bool) *RefValue {
 	return &RefValue{
-		getter: func(b *Interpreter) any {
+		getter: func() any {
 			return num
 		},
-		setter: func(b *Interpreter, v any) {
+		setter: func(v any) {
 			num = cast.ToBool(v)
 		},
 		Symbol: fmt.Sprintf("%v", num),
@@ -332,10 +419,10 @@ func NewBool(num bool) *RefValue {
 }
 func NewNumber(num float64) *RefValue {
 	return &RefValue{
-		getter: func(b *Interpreter) any {
+		getter: func() any {
 			return num
 		},
-		setter: func(b *Interpreter, v any) {
+		setter: func(v any) {
 			num = v.(float64)
 		},
 		Symbol: fmt.Sprintf("%v", num),
@@ -352,7 +439,7 @@ func NewString(str string, b64 bool) *RefValue {
 		str = string(str0)
 	}
 	return &RefValue{
-		getter: func(b *Interpreter) any {
+		getter: func() any {
 			return str
 		},
 	}
@@ -365,6 +452,8 @@ func (r *RefValue) SysName() string {
 		return fmt.Sprintf("%s", r.Str())
 	case "VAR":
 		return fmt.Sprintf("%s (%v)", r.Symbol, r.Any())
+	default:
+		panic("unsupport other type " + r.Type)
 	}
 	return ""
 }
@@ -385,20 +474,20 @@ func (r *RefValue) Bool() bool {
 	return false
 }
 func (r *RefValue) Any() any {
-	e := r.getter(r.Interpreter)
+	e := r.getter()
 	return e
 }
 func (r *RefValue) F() float64 {
-	return cast.ToFloat64(r.getter(r.Interpreter))
+	return cast.ToFloat64(r.getter())
 }
 func (r *RefValue) I() int {
-	return cast.ToInt(r.getter(r.Interpreter))
+	return cast.ToInt(r.getter())
 }
 func (r *RefValue) Str() string {
-	el := r.getter(r.Interpreter)
+	el := r.getter()
 	d := reflect.ValueOf(el)
 	switch d.Kind() {
-	case reflect.Map, reflect.Struct:
+	case reflect.Map, reflect.Struct, reflect.Slice:
 		return fmt.Sprintf("%v", el)
 	}
 	return cast.ToString(el)
@@ -420,7 +509,7 @@ func New() *Interpreter {
 		top:      -1,
 		AssignId: 0,
 	}
-	sb.Push("GLOBAL", []any{})
+	sb.Push("GLOBAL", []*RefValue{})
 	b := &Interpreter{
 		Stdout:     os.Stdout,
 		Logger:     log.New(os.Stdout, "SYS", log.LstdFlags),
@@ -438,12 +527,18 @@ func New() *Interpreter {
 	return b
 }
 
+func (vm *Interpreter) ParseAndRun(rawCode string) {
+	byteCode := compiler.Compile(rawCode)
+	vm.SetReader(strings.NewReader(string(byteCode)))
+	vm.Handle()
+}
+
 func (r *Interpreter) LookupRevIndex(idx int) *RefValue {
 	for i := r.UnionStack.top; i >= 0; i-- {
 		stack := r.UnionStack.Stack[i]
 		for j := stack.Index(); j >= 0; j-- {
 			if idx == 0 {
-				return stack.Params[j].(*RefValue)
+				return stack.Params[j]
 			}
 			idx--
 		}
@@ -455,9 +550,9 @@ func (r *Interpreter) LookupVar(name string) *RefValue {
 	for i := r.UnionStack.top; i >= 0; i-- {
 		stack := r.UnionStack.Stack[i]
 		for j := stack.Index(); j >= 0; j-- {
-			el := stack.Params[j].(*RefValue)
+			el := stack.Params[j]
 			if el.Type == "VAR" && el.Symbol == name {
-				return stack.Params[j].(*RefValue)
+				return stack.Params[j]
 			}
 		}
 	}
@@ -506,9 +601,11 @@ func globalSet(f *Interpreter) {
 	})
 	f.Set("forStmtBegin", func(_, label string, nodeCount string) (any, error) {
 		f.Labels[label] = f.Index()
+		f.UnionStack.Push("FOR", []*RefValue{})
 		return nil, nil
 	})
 	f.Set("forStmtEnd", func(_, label string) (any, error) {
+		f.UnionStack.Pop()
 		delete(f.Labels, label)
 		return nil, nil
 	})
@@ -549,6 +646,7 @@ func globalSet(f *Interpreter) {
 		}
 		return nil, nil
 	})
+	f.Set("//", func() {})
 	f.Set("if", func() {})
 	f.Set("#IF", func() {})
 	f.Set("#ENDIF", func() {})
@@ -601,7 +699,7 @@ func globalSet(f *Interpreter) {
 		return nil, nil
 	})
 	f.Set("for_step", func(_, op string) (any, error) {
-		f.UnionStack.Push("for_step", []any{})
+		f.UnionStack.Push("for_step", []*RefValue{})
 		return nil, nil
 	})
 	f.Set("for_step_end", func(_, op string) (any, error) {
@@ -664,7 +762,7 @@ func globalSet(f *Interpreter) {
 	f.Set("ASSIGN", func(op, arg string) (any, error) {
 		num1 := f.Pop()
 		variableVal := f.Pop()
-		variableVal.setter(f, num1.Any())
+		variableVal.setter(num1.Any())
 		// f.UnionStack.SetVarAtTop(num2.SysName(), num1)
 		f.Push(variableVal)
 		return nil, nil
@@ -683,15 +781,39 @@ func globalSet(f *Interpreter) {
 		return popFn(f, funcName)
 	})
 	f.Set("@getvalue", func(op, varName, varType, keyvalue string) (any, error) {
-		d := getArrayOrMap(f, varName, varType, keyvalue)
-		f.Push(NewVar2("@getVal", d))
+		f.Push(NewArrayOrMapKeyRefValue(f, varName, varType, keyvalue))
 		return nil, nil
 	})
 }
 
+func is(val, kind string) bool {
+	return strings.EqualFold(val, kind)
+}
+
+func arrayOrMapSetter(i *Interpreter, b *RefValue, d any, mapName, mapKeyType, mapKeyName string) {
+	originMap := i.LookupVar(mapName)
+
+	arr := originMap.Any()
+	switch arr := arr.(type) {
+	case []any:
+		if is(mapKeyType, "NUMBER") {
+			idx := cast.ToInt(mapKeyName)
+			if idx >= 0 && idx < len(arr) {
+				arr[idx] = d
+			}
+		} else {
+			log.Fatalf("invalid map key type: %s", mapKeyType)
+		}
+	case map[string]any:
+		arr[mapKeyName] = d
+	default:
+		log.Fatalf("invalid map type: %T", arr)
+	}
+
+}
+
 func getArrayOrMap(b *Interpreter, varName, varType, keyvalue string) any {
 	d := b.LookupVar(varName)
-
 	switch varType {
 	case "number":
 		bb, ok := d.Any().([]any)
@@ -757,9 +879,9 @@ func (f *Interpreter) OP(op, plus string) (any, error) {
 	case "=":
 		num1 := f.Pop()
 		variableVal := f.Pop()
-		variableVal.setter(f, num1.Any())
+		variableVal.setter(num1.Any())
 		if e := f.LookupVar(variableVal.Symbol); e != nil {
-			e.setter(f, variableVal.Any())
+			e.setter(variableVal.Any())
 			return nil, nil
 		}
 		f.Push(variableVal)
@@ -770,7 +892,7 @@ func (f *Interpreter) OP(op, plus string) (any, error) {
 		return f.Top(), nil
 	case "++":
 		num1 := f.Pop()
-		num1.setter(f, num1.F()+1)
+		num1.setter(num1.F() + 1)
 		f.Push(num1)
 	case ">":
 		num1 := f.Pop()
@@ -812,44 +934,24 @@ func Json(v any) string {
 	return string(bs)
 }
 
-type InlineFunc func(f *Interpreter, args ...*RefValue) any
-
-var (
-	inlineFunc = map[string]InlineFunc{
-		"print":   printLn,
-		"throw":   throwErr,
-		"recover": recoverErr,
-		"fatal":   fatalErr,
-		"array":   NewArray,
-		"map":     NewMap,
-		"set":     exitCodeSet,
-		"exit":    exitCodeSet,
+func unwrapLang(core func(f *Interpreter, args ...any) any) func(f *Interpreter, args ...*RefValue) any {
+	return func(f *Interpreter, args ...*RefValue) any {
+		if len(args) == 0 {
+			return nil
+		}
+		rev := make([]any, len(args))
+		for i, v := range args {
+			rev[i] = v.Any()
+		}
+		return core(f, rev...)
 	}
-)
+}
 
 func exitCodeSet(f *Interpreter, args ...*RefValue) any {
 	varObj := args[0]
 	el := varObj.I()
 	f.ExitCode = el
 	return f.ExitCode
-}
-func setArrayOrMap(f *Interpreter, args ...*RefValue) any {
-	varObj := args[0]
-	key := args[1].Str()
-	value := args[2].Any()
-	el := varObj.Any()
-	switch arr := el.(type) {
-	case []any:
-		idx := cast.ToInt(key)
-		if idx >= 0 && idx < len(arr) {
-			arr[idx] = value
-		}
-	case map[string]any:
-		arr[key] = value
-	default:
-	}
-
-	return nil
 }
 
 func NewMap(f *Interpreter, args ...*RefValue) any {
@@ -872,6 +974,8 @@ func fatalErr(f *Interpreter, args ...*RefValue) any {
 	for _, v := range args {
 		buf.WriteString(v.Str())
 	}
+	f.ErrCode = 1
+	f.ErrMsg = buf.String()
 	f.Logger.Fatal(buf.String())
 	return nil
 }
@@ -903,7 +1007,7 @@ func printLn(f *Interpreter, args ...*RefValue) any {
 }
 
 func langFuncCall(f *Interpreter, fnName string, args ...*RefValue) (any, error) {
-	f.UnionStack.Push(fnName, []any{})
+	f.UnionStack.Push(fnName, []*RefValue{})
 	top := f.UnionStack.Top()
 	top.Line = f.Index()
 	// should push stack

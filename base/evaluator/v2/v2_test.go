@@ -192,8 +192,9 @@ func Test_simple_for(t *testing.T) {
 	globalSet(b)
 	raw := `
 var a = 1
-for(a<100) {
+for(a<5) {
 	a = a + 1
+	print(a)
 	continue
 }
 print(a)
@@ -215,10 +216,13 @@ func Test_complex_for(t *testing.T) {
 	raw := `
 var a = 0
 for(i=0;i<10;i++) {
+// errno = 333
 	a = a + 1
 	print(a)
 	continue
 }
+print("a=",a)
+print("errno=",errno)
 	`
 	sc := compiler.Compile(raw)
 	t.Log("~~")
@@ -289,7 +293,6 @@ printstack;
 	// t.Log(b.Top().Str())
 }
 
-
 func Test_throw_recover(t *testing.T) {
 	b := New()
 	raw := `
@@ -310,8 +313,45 @@ call1("~")
 
 	`
 	sc := compiler.Compile(raw)
-	t.Log("byte codes :",sc)
+	t.Log("byte codes :", sc)
 	t.Log("~~")
 	b.SetReader(strings.NewReader(sc))
+	b.Handle()
+}
+
+
+
+func Test_parseAndRun(t *testing.T) {
+	b := New()
+	raw := `
+
+fn call1(inputStr) {
+    mapValue = map("a",1,"b",2,"c",3)
+	mapValue["a"] = 666
+	print(mapValue)
+	sliceTest = array(1,2,3)
+	sliceTest[1] = 8
+	sliceTest = append(sliceTest,4)
+	sliceTest[0] = 999
+	print(sliceTest)
+	sliceTest = remove(sliceTest,0)
+	print(sliceTest)
+	print("removeMapTest",remove(mapValue,"a"))
+}
+
+call1("~")
+
+if errno > 0 {
+	print(recover())
+}else {
+	print("success" )
+}
+
+print(typeof(sliceTest))
+	`
+	// b.ParseAndRun(raw)
+	byteCode := compiler.Compile(raw)
+	t.Log("byte codes :", string(byteCode))
+	b.SetReader(strings.NewReader(string(byteCode)))
 	b.Handle()
 }

@@ -76,6 +76,7 @@ for i=0;i<100;i++ {
 	treeSrc := ast.ShowTree(tree)
 	os.WriteFile("../../test.tree.txt", []byte(treeSrc), 0644)
 	UnPackWithDebug(code,tree,buf)
+	t.Log(buf.String())
 	os.WriteFile("../../test.txt", buf.Bytes(), 0644)
 }
 

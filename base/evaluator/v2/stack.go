@@ -8,8 +8,8 @@ import (
 
 type LabelStack struct {
 	Label      string
-	ParamsName []string
-	Params     []any
+	// ParamsName []string
+	Params     []*RefValue
 	top        int
 	Line int
 	// ReturnValue any
@@ -50,19 +50,9 @@ type UnionStack struct {
 // 	r.Stack[r.top].Push(name, v)
 // }
 
-func (r *UnionStack) VarByName(name string) any {
-	for i := r.top; i >= 0; i-- {
-		stack := r.Stack[i]
-		for j := stack.top; j >= 0; j-- {
-			if stack.ParamsName[j] == name {
-				return stack.Params[j]
-			}
-		}
-	}
-	return nil
-}
 
-func (r *UnionStack) PushWithName(label string, params []any, names []string) {
+
+func (r *UnionStack) PushWithName(label string, params []*RefValue, names []string) {
 	if len(params) != len(names) {
 		log.Panicf("params and names length mismatch")
 	}
@@ -70,7 +60,7 @@ func (r *UnionStack) PushWithName(label string, params []any, names []string) {
 		r.Stack = append(r.Stack, &LabelStack{
 			Label:      label,
 			Params:     params,
-			ParamsName: names,
+			// ParamsName: names,
 			top:        len(params) - 1,
 		})
 		r.top++
@@ -79,13 +69,20 @@ func (r *UnionStack) PushWithName(label string, params []any, names []string) {
 	r.Stack[r.top+1] = &LabelStack{
 		Label:      label,
 		Params:     params,
-		ParamsName: names,
+		// ParamsName: names,
 		top:        len(params) - 1,
 	}
 	r.top++
 }
 
-func (r *UnionStack) Push(label string, params []any) {
+func (r *UnionStack) FreeUnused() {
+	for i:=r.top+1;i<len(r.Stack);i++ {
+		r.Stack[i].FreeUnused()
+	}
+	r.Stack = r.Stack[:r.top+1]
+}
+
+func (r *UnionStack) Push(label string, params []*RefValue) {
 	r.PushWithName(label, params, make([]string, len(params)))
 }
 
@@ -124,19 +121,37 @@ func (r *LabelStack) Pop() any {
 	return d
 }
 
-func (r *LabelStack) Push(name string, v any) {
+func (r *LabelStack) Push(name string, v *RefValue) {
 	if r.top+1 >= len(r.Params) {
 		r.Params = append(r.Params, v)
-		r.ParamsName = append(r.ParamsName, name)
+		// r.ParamsName = append(r.ParamsName, name)
 	}
 	//Final PushTOP
 
 	r.Params[r.top+1] = v
-	r.ParamsName[r.top+1] = name
+	// r.ParamsName[r.top+1] = name
 	r.top++
 }
 
-func (r *LabelStack) Top() any {
+
+func (r *LabelStack) FreeUnused() {
+	if r == nil {
+		return
+	}
+	for i:=r.top+1;i<len(r.Params);i++ {
+		if r.Params[i] != nil {
+			r.Params[i].Free()
+		}
+		r.Params[i] = nil
+	}
+	r.Params = r.Params[:r.top+1]
+}
+
+
+func (r *LabelStack) Top() *RefValue {
+	if r.top < 0 || r.top >= len(r.Params) {
+		return nil
+	}
 	return r.Params[r.top]
 }
 

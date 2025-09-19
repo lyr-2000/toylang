@@ -8,8 +8,14 @@ import (
 	"github.com/lyr-2000/toylang/base/evaluator"
 )
 
+var (
+	CompilerVersion = "0.0.1"
+)
+
 func Compile(raw string) string {
 	var buf strings.Builder
+
+	buf.WriteString("// @remarks ToyLang Compiler Version: "+CompilerVersion+"\n")
 	bn := evaluator.ParseSourceTree(raw)
 	GenerateIntermediateCode(bn, &buf)
 	return buf.String()
