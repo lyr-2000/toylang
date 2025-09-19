@@ -325,6 +325,15 @@ func Test_parseAndRun(t *testing.T) {
 	b := New()
 	raw := `
 
+b = "3" + 1
+print("b=",b)
+
+el = 0
+el |= 1
+print("el=",el)
+el &= 0
+print("el &=0 ",el)
+
 fn call1(inputStr) {
     mapValue = map("a",1,"b",2,"c",3)
 	mapValue["a"] = 666

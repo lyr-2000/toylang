@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/spf13/cast"
 )
@@ -51,4 +52,61 @@ func RemoveValueAtIndex(f *Interpreter, args ...any) any {
 		delete(mapval, cast.ToString(args[1]))
 	}
 	return args[0]
+}
+
+func ExtOp(f *Interpreter, op string) (*RefValue, bool) {
+	switch op {
+	case "&=":
+		num1 := f.Pop()
+		x := f.Pop()
+		d := x.I() & num1.I()
+		x.setter(d)
+		f.Push(x)
+		return x, true
+	case "|=":
+		num1 := f.Pop()
+		x := f.Pop()
+		d := x.I() | num1.I()
+		x.setter(d)
+		f.Push(x)
+		return x, true
+	case "/=":
+		num1 := f.Pop()
+		x := f.Pop()
+		if num1.F() == 0 {
+			log.Panicf("divide by zero")
+		}
+		d := x.F() / num1.F()
+		x.setter(d)
+		f.Push(x)
+		return x, true
+	case "*=":
+		num1 := f.Pop()
+		x := f.Pop()
+		d := x.F() * num1.F()
+		x.setter(d)
+		f.Push(x)
+		return x, true
+	case "+=":
+		num1 := f.Pop()
+		x := f.Pop()
+		d := x.F() + num1.F()
+		x.setter(d)
+		f.Push(x)
+		return x, true
+	case "-=":
+		num1 := f.Pop()
+		x := f.Pop()
+		d := x.I() - num1.I()
+		x.setter(d)
+		f.Push(x)
+		return x, true
+	case "--":
+		x := f.Pop()
+		d := x.I() - 1
+		x.setter(d)
+		f.Push(x)
+		return x, true
+	}
+	return nil, false
 }

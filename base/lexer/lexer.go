@@ -132,10 +132,10 @@ func (l *BaseLexer) readNumberTok() *Token {
 		for {
 			peekchar := l.Peek()
 			switch {
-			case 'e' == peekchar || 'E' == peekchar:
-				l.Next()
-				buf.WriteRune(ch)
-				continue Label
+			// case 'e' == peekchar || 'E' == peekchar:
+			// 	l.Next()
+			// 	buf.WriteRune(ch)
+			// 	continue Label
 			case IsNumber(peekchar):
 				l.Next() //for->next
 				buf.WriteRune(peekchar)
@@ -175,7 +175,7 @@ func (l *BaseLexer) readNumberTok() *Token {
 				buf.WriteRune(fc)
 				continue readNumber
 			}
-			if eNumber && specialOpChar == 0 && fc == '+' || fc == '-' {
+			if eNumber && specialOpChar == 0 && (fc == '+' || fc == '-') {
 				l.Next()
 				specialOpChar++
 				buf.WriteRune(fc)

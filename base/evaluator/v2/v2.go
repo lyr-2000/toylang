@@ -861,20 +861,20 @@ func (f *Interpreter) skipFuncLine(funcName string) {
 func (f *Interpreter) OP(op, plus string) (any, error) {
 	switch plus {
 	case "+":
-		num1 := f.Pop()
 		num2 := f.Pop()
-		f.Push(NewNumber(num1.F() + num2.F()))
+		num1 := f.Pop()
+		f.Push(num1.Plus(num2))
 	case "-":
-		num1 := f.Pop()
 		num2 := f.Pop()
+		num1 := f.Pop()
 		f.Push(NewNumber(num1.F() - num2.F()))
 	case "*":
-		num1 := f.Pop()
 		num2 := f.Pop()
+		num1 := f.Pop()
 		f.Push(NewNumber(num1.F() * num2.F()))
 	case "/":
-		num1 := f.Pop()
 		num2 := f.Pop()
+		num1 := f.Pop()
 		f.Push(NewNumber(num1.F() / num2.F()))
 	case "=":
 		num1 := f.Pop()
@@ -920,7 +920,14 @@ func (f *Interpreter) OP(op, plus string) (any, error) {
 		f.Push(NewBool(num1.Any() == numvar.Any()))
 		return f.Top(), nil
 	default:
-		log.Printf("invalid op: %s", plus)
+		d, ok := ExtOp(f, plus)
+		if ok {
+			if d != nil {
+				f.Push(d)
+			}
+			return f.Top(), nil
+		}
+		log.Panicf("invalid op: %s", plus)
 		return nil, ErrInvalidOp
 	}
 	return f.Top().Any(), nil
