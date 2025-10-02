@@ -1,0 +1,8 @@
+
+user = "leo"
+user_role = "simple"
+
+if (user_role != "ADMIN") { print("NOTADMIN"); exit(1)}
+
+print(user_role)
+print("PASS")

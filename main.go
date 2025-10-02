@@ -30,8 +30,8 @@ func main() {
 	}
 	vm := interpreter.New()
 	vm.ParseAndRun(string(code))
-	if vm.ExitCode != 0 {
-		log.Fatal("exit code:", vm.ExitCode)
+	if vm.ExitCode != nil && *vm.ExitCode != 0 {
+		log.Fatal("exit code:", *vm.ExitCode)
 		return
 	}
 	if vm.ErrCode != 0 {

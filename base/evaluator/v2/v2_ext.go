@@ -17,7 +17,7 @@ var (
 		"fatal":   fatalErr,
 		"array":   NewArray,
 		"map":     NewMap,
-		"set":     exitCodeSet,
+		"set":     unwrapLang(SetIndex),
 		"exit":    exitCodeSet,
 		"append":  unwrapLang(AppendSlice),
 		"remove":  unwrapLang(RemoveValueAtIndex),
@@ -27,6 +27,16 @@ var (
 
 func StrTypeOf(f *Interpreter, args ...any) any {
 	return fmt.Sprintf("%T", args[0])
+}
+
+func SetIndex(f *Interpreter, args ...any) any {
+	ele, ok := args[0].([]any)
+	if !ok {
+		return args[0]
+	}
+	// set(a,1,0)
+	ele[cast.ToInt(args[1])] = args[2]
+	return ele
 }
 
 func AppendSlice(f *Interpreter, args ...any) any {

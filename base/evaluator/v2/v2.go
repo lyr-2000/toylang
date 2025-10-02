@@ -23,7 +23,6 @@ type Interpreter struct {
 	Stdout io.Writer
 	Logger *log.Logger
 	Debug  bool
-	// Code [][]string
 	CodeReader io.Reader
 	globalVar  map[string]any
 	UnionStack *UnionStack
@@ -42,7 +41,7 @@ type Interpreter struct {
 	funcParamCount map[string]int
 
 	ErrCode  int
-	ExitCode int
+	ExitCode *int
 	ErrMsg   string
 	MaxStack uint16 // max function stackSize 65535 
 }
@@ -95,6 +94,33 @@ func (r *RefValue) CompareTo(w *RefValue) int {
 		}
 		return 0
 	}
+	switch r.getter().(type) {
+	case string:
+		if r.Str() < w.Str() {
+			return -1
+		}
+		if r.Str() > w.Str() {
+			return 1
+		}
+		return 0
+	case float64:
+		if r.F() < w.F() {
+			return -1
+		}
+		if r.F() > w.F() {
+			return 1
+		}
+		return 0
+	case int,bool,int32,int64,uint,uint32,uint64,int8,uint8,uint16,int16:
+		if r.I() < w.I() {
+			return -1
+		}
+		if r.I() > w.I() {
+			return 1
+		}
+		return 0
+	}
+
 	if r.Any() == nil {
 		if w.Any() == nil {
 			return 0
@@ -245,6 +271,9 @@ func (r *Interpreter) Handle() {
 	r.scanFuncLine()
 	for r.ProgramIndex < len(r.Program) {
 		freeStackMem(r, r.Program[r.ProgramIndex])
+		if r.ExitCode != nil {
+			break
+		}
 		stackoverflowCheck(r)
 		r.do(r.Program[r.ProgramIndex])
 		r.ProgramIndex++
@@ -985,7 +1014,7 @@ func unwrapLang(core func(f *Interpreter, args ...any) any) func(f *Interpreter,
 func exitCodeSet(f *Interpreter, args ...*RefValue) any {
 	varObj := args[0]
 	el := varObj.I()
-	f.ExitCode = el
+	f.ExitCode = &el
 	return f.ExitCode
 }
 
